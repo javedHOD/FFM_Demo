@@ -1,0 +1,17 @@
+node_modules/
+.env
+*.log
+
+# Keep upload directory structure but ignore actual uploaded files
+uploads/selfies/*
+uploads/visit-photos/*
+uploads/shop-photos/*
+uploads/profiles/*
+uploads/temp/*
+
+# But keep the .gitkeep placeholder files
+!uploads/selfies/.gitkeep
+!uploads/visit-photos/.gitkeep
+!uploads/shop-photos/.gitkeep
+!uploads/profiles/.gitkeep
+!uploads/temp/.gitkeep
