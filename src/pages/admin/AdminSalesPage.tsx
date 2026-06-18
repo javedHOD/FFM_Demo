@@ -146,25 +146,34 @@ export const AdminSalesPage: React.FC = () => {
     }
   };
 
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
     if (filtered.length === 0) {
       toast.error('No sales data to export');
       return;
     }
 
-    downloadCsv(
-      csvFilename('sales-report'),
-      ['Product', 'Shop', 'Staff', 'Quantity', 'Amount (SAR)', 'Date'],
-      filtered.map(s => [
-        s.productName,
-        s.shopName ?? '',
-        s.userName ?? `User #${s.userId}`,
-        s.quantity,
-        s.amount,
-        format(new Date(s.createdAt), 'dd MMM yyyy'),
-      ])
-    );
-    toast.success(`Exported ${filtered.length} sales record${filtered.length !== 1 ? 's' : ''}`);
+    try {
+      const result = await downloadCsv(
+        csvFilename('sales-report'),
+        ['Product', 'Shop', 'Staff', 'Quantity', 'Amount (SAR)', 'Date'],
+        filtered.map(s => [
+          s.productName,
+          s.shopName ?? '',
+          s.userName ?? `User #${s.userId}`,
+          s.quantity,
+          s.amount,
+          format(new Date(s.createdAt), 'dd MMM yyyy'),
+        ])
+      );
+      if (result.savedToDownloads) {
+        toast.success(`Saved ${filtered.length} record${filtered.length !== 1 ? 's' : ''} to Downloads`);
+      } else {
+        toast.success(`Exported ${filtered.length} sales record${filtered.length !== 1 ? 's' : ''}`);
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to export CSV');
+    }
   };
 
   const rangeLabel = useMemo(() => {

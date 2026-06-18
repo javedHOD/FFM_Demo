@@ -116,7 +116,7 @@ export const ReportsPage: React.FC = () => {
     { id: 'gps',        label: 'GPS',          icon: <Navigation className="w-4 h-4" /> },
   ];
 
-  const handleExport = () => {
+  const handleExport = async () => {
     let headers: string[] = [];
     let rows: (string | number)[][] = [];
     let prefix = activeTab;
@@ -244,8 +244,17 @@ export const ReportsPage: React.FC = () => {
       }
     }
 
-    downloadCsv(csvFilename(`${prefix}-report`), headers, rows);
-    toast.success(`Exported ${rows.length} record${rows.length !== 1 ? 's' : ''} to CSV`);
+    try {
+      const result = await downloadCsv(csvFilename(`${prefix}-report`), headers, rows);
+      if (result.savedToDownloads) {
+        toast.success(`Saved ${rows.length} record${rows.length !== 1 ? 's' : ''} to Downloads`);
+      } else {
+        toast.success(`Exported ${rows.length} record${rows.length !== 1 ? 's' : ''} to CSV`);
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to export CSV');
+    }
   };
 
   if (loading) {
