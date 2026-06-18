@@ -1,5 +1,4 @@
 node_modules/
-.env
 *.log
 
 # Keep upload directory structure but ignore actual uploaded files
