@@ -108,7 +108,17 @@ export const OrdersPage: React.FC = () => {
     setItems(prev => prev.map((item, i) => i === index ? { ...item, ...patch } : item));
   };
 
-  const addItemRow = () => setItems(prev => [...prev, { ...emptyItem }]);
+  // ── Validation before adding a new row ────────────────────────────────
+  const addItemRow = () => {
+    const lastItem = items[items.length - 1];
+    if (!lastItem.productName.trim() || !lastItem.quantity.trim()) {
+      toast.error('Please complete Item and Quantity before adding a new item.');
+      return;
+    }
+    setItems(prev => [...prev, { ...emptyItem }]);
+    setErrors({});
+  };
+
   const removeItemRow = (index: number) => setItems(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== index));
 
   const pending = orders.filter(o => o.status === 'Pending').length;
@@ -234,7 +244,7 @@ export const OrdersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Create Order Modal */}
+      {/* ── Create Order Modal ──────────────────────────────────────── */}
       <Modal
         isOpen={addModal}
         onClose={() => { setAddModal(false); resetForm(); }}
@@ -281,9 +291,15 @@ export const OrdersPage: React.FC = () => {
                 : [];
 
               return (
-                <div key={index} className="rounded-xl border border-slate-200 p-3 bg-slate-50 space-y-2">
-                  <div className="grid grid-cols-12 gap-2 items-start">
-                    <div className="col-span-7 relative">
+                <div key={index} className="rounded-xl border border-slate-200 p-3 bg-slate-50">
+                  {/*
+                    Mobile  (default)  → flex-col  → each field stacks vertically
+                    Tablet+ (md and up) → flex-row  → fields sit side by side
+                  */}
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:gap-2">
+
+                    {/* Row 1 (mobile) / Col 1 (desktop): Item */}
+                    <div className="flex-1 relative">
                       <Input
                         label={index === 0 ? 'Item Search' : undefined}
                         required
@@ -308,9 +324,11 @@ export const OrdersPage: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    <div className="col-span-4">
+
+                    {/* Row 2 (mobile) / Col 2 (desktop): Quantity */}
+                    <div className="w-full md:w-32">
                       <Input
-                        label={index === 0 ? 'Qty' : undefined}
+                        label={index === 0 ? 'Quantity' : undefined}
                         required
                         type="number"
                         min="1"
@@ -320,7 +338,9 @@ export const OrdersPage: React.FC = () => {
                         error={errors[`quantity-${index}`]}
                       />
                     </div>
-                    <div className="col-span-1 pt-8">
+
+                    {/* Remove button */}
+                    <div className="flex md:pt-8">
                       <button
                         type="button"
                         onClick={() => removeItemRow(index)}
@@ -347,7 +367,7 @@ export const OrdersPage: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Order Detail Modal */}
+      {/* ── Order Detail Modal ──────────────────────────────────────── */}
       <Modal
         isOpen={!!selectedOrder}
         onClose={() => setSelectedOrder(null)}

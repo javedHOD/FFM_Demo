@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Store, MapPin, Clock, ShoppingCart,
   BarChart3, FileText, Shield, LogOut, ChevronDown, ChevronRight,
   Menu, X, Briefcase, CheckSquare, Camera, Package, Navigation,
-  Globe, Building2, Landmark, AlarmClock,
+  Globe, Building2, Landmark, AlarmClock, QrCode,
 } from 'lucide-react';
 
 interface NavItem {
@@ -37,6 +37,7 @@ const navItems: NavItem[] = [
   { label: 'Region/City Report', path: '/admin/region-city-report', icon: <FileText className="w-4.5 h-4.5" />, roles: ['Admin'] },
   { label: 'Photo Compliance', path: '/admin/photos', icon: <Camera className="w-4.5 h-4.5" />, roles: ['Admin'] },
   { label: 'Live Tracking', path: '/tracking', icon: <Navigation className="w-4.5 h-4.5" />, roles: ['Admin', 'National Sales Manager'] },
+  { label: 'IMEI Verification Log', path: '/admin/imei-logs', icon: <QrCode className="w-4.5 h-4.5" />, roles: ['Admin'] },
   { label: 'Locations', path: '/admin/locations', icon: <Globe className="w-4.5 h-4.5" />, roles: ['Admin'] },
   { label: 'HR Management', path: '/admin/hr', icon: <Users className="w-4.5 h-4.5" />, roles: ['Admin'] },
   { label: 'Shift Management', path: '/admin/shifts', icon: <AlarmClock className="w-4.5 h-4.5" />, roles: ['Admin'] },

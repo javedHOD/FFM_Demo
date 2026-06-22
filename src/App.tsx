@@ -30,6 +30,7 @@ import { LocationManagementPage } from './pages/admin/LocationManagementPage';
 import { HRManagementPage } from './pages/admin/HRManagementPage';
 import { ShiftsPage } from './pages/admin/ShiftsPage';
 import { RegionCityReportPage } from './pages/admin/RegionCityReportPage';
+import { ImeiVerificationLogPage } from './pages/admin/ImeiVerificationLogPage';
 
 // Guest-only route (redirect if already logged in)
 const GuestRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -116,6 +117,7 @@ export default function App() {
         <Route path="/admin/hr" element={<AdminRoute><HRManagementPage /></AdminRoute>} />
         <Route path="/admin/shifts" element={<AdminRoute><ShiftsPage /></AdminRoute>} />
         <Route path="/admin/region-city-report" element={<AdminRoute><RegionCityReportPage /></AdminRoute>} />
+        <Route path="/admin/imei-logs" element={<AdminRoute><ImeiVerificationLogPage /></AdminRoute>} />
 
         {/* Unauthorized */}
         <Route path="/unauthorized" element={

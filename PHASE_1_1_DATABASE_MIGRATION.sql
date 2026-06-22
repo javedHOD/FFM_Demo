@@ -47,9 +47,16 @@ CREATE TABLE order_items (
   order_id     INT           NOT NULL,
   product_name NVARCHAR(255) NOT NULL,
   quantity     INT           NOT NULL,
+  price        DECIMAL(15,2) NOT NULL DEFAULT 0,
   created_at   DATETIME      DEFAULT GETDATE(),
   CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
+GO
+
+-- 4b) Add price column if order_items table already exists without it
+IF EXISTS (SELECT 1 FROM sys.objects WHERE type='U' AND name='order_items')
+   AND NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('order_items') AND name = 'price')
+  ALTER TABLE order_items ADD price DECIMAL(15,2) NOT NULL DEFAULT 0;
 GO
 
 -- 5) Optional backfill for existing single-item orders

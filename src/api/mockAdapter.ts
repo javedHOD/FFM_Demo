@@ -368,6 +368,28 @@ export const createMockAdapter = (): AxiosAdapter => async (config) => {
     if (path.startsWith('/hr/')) return ok(config, Array.isArray(body) ? [] : []);
     if (path.startsWith('/uploads/')) return ok(config, { url: '', fullUrl: '', filename: 'demo.jpg' });
 
+
+    // IMEI Verification
+    if (method === 'post' && path === '/imei/verify') {
+      const imei = String(body.IMEI || '').trim();
+      const testImeis = ['865901088912346', '356789112233445', '490154203237518'];
+      const dummyData = [
+        { Region: 'Riyadh', City: 'Riyadh', ShopName: 'Ronin', CustomerName: 'Omar Al-Shamri', CompanyName: 'Siccotel', ProductName: 'Samsung Galaxy A15', ProductCategory: 'Mobile', IMEINo: '865901088912346', InvoiceNo: 'INV-1001', InvoiceDate: '2026-06-18' },
+        { Region: 'Eastern Region', City: 'Dammam', ShopName: 'SF Traders', CustomerName: 'Ahmed Saleh', CompanyName: 'Siccotel', ProductName: 'iPhone 13', ProductCategory: 'Mobile', IMEINo: '356789112233445', InvoiceNo: 'INV-1002', InvoiceDate: '2026-06-17' },
+        { Region: 'Makkah', City: 'Jeddah', ShopName: 'City Mobile Hub', CustomerName: 'Faisal Khan', CompanyName: 'Siccotel', ProductName: 'Infinix Note 40', ProductCategory: 'Mobile', IMEINo: '490154203237518', InvoiceNo: 'INV-1003', InvoiceDate: '2026-06-16' },
+      ];
+      const found = dummyData.find(d => d.IMEINo === imei);
+      if (found) return ok(config, { status: '1', message: 'IMEI verified successfully.', data: found }, 200);
+      return ok(config, { status: '0', message: 'No record found against this IMEI number.' }, 404);
+    }
+    if (path === '/imei/logs') {
+      const logsKey = 'imei_logs_demo';
+      try {
+        const saved = localStorage.getItem(logsKey);
+        if (saved) return ok(config, JSON.parse(saved));
+      } catch {}
+      return ok(config, []);
+    }
     return ok(config, []);
   } catch (error: any) {
     return msg(config, error.message || 'Demo mock error', 500);

@@ -93,7 +93,18 @@ export const SalesPage: React.FC = () => {
   };
 
   const updateItem = (index: number, patch: Partial<SaleItem>) => setItems(prev => prev.map((item, i) => i === index ? { ...item, ...patch } : item));
-  const addItem = () => setItems(prev => [...prev, { ...emptyItem }]);
+
+  // ── Validation before adding a new row ────────────────────────────────
+  const addItem = () => {
+    const lastItem = items[items.length - 1];
+    if (!lastItem.productName.trim() || !lastItem.quantity.trim() || !lastItem.amount.trim()) {
+      toast.error('Please complete Item, Quantity, and Price before adding a new item.');
+      return;
+    }
+    setItems(prev => [...prev, { ...emptyItem }]);
+    setErrors({});
+  };
+
   const removeItem = (index: number) => setItems(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== index));
 
   const totalSales = sales.reduce((sum, s) => sum + s.amount, 0);
@@ -167,22 +178,85 @@ export const SalesPage: React.FC = () => {
               <label className="text-sm font-medium text-slate-700">Sales Items <span className="text-red-500">*</span></label>
               <Button variant="outline" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={addItem}>Add Item</Button>
             </div>
+            {errors.items && <p className="text-xs text-red-600">{errors.items}</p>}
+
             {items.map((item, index) => {
               const suggestions = item.productName ? products.filter(p => p.toLowerCase().includes(item.productName.toLowerCase())).slice(0, 6) : [];
               return (
                 <div key={index} className="rounded-xl border border-slate-200 p-3 bg-slate-50">
-                  <div className="grid grid-cols-12 gap-2 items-start">
-                    <div className="col-span-5 relative">
-                      <Input label={index === 0 ? 'Item Search' : undefined} required placeholder="Type item name..." value={item.productName} onChange={e => updateItem(index, { productName: e.target.value })} leftIcon={<Search className="w-4 h-4" />} error={errors[`product-${index}`]} />
+                  {/*
+                    Mobile  (default)  → flex-col  → each field stacks vertically
+                    Tablet+ (md and up) → flex-row  → fields sit side by side
+                  */}
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:gap-2">
+
+                    {/* Row 1 (mobile) / Col 1 (desktop): Item */}
+                    <div className="flex-1 relative">
+                      <Input
+                        label={index === 0 ? 'Item Search' : undefined}
+                        required
+                        placeholder="Type item name..."
+                        value={item.productName}
+                        onChange={e => updateItem(index, { productName: e.target.value })}
+                        leftIcon={<Search className="w-4 h-4" />}
+                        error={errors[`product-${index}`]}
+                      />
                       {suggestions.length > 0 && !products.includes(item.productName) && (
                         <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                          {suggestions.map(product => <button key={product} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 text-slate-700" onClick={() => updateItem(index, { productName: product })}>{product}</button>)}
+                          {suggestions.map(product => (
+                            <button
+                              key={product}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 text-slate-700"
+                              onClick={() => updateItem(index, { productName: product })}
+                            >
+                              {product}
+                            </button>
+                          ))}
                         </div>
                       )}
                     </div>
-                    <div className="col-span-3"><Input label={index === 0 ? 'Qty' : undefined} required type="number" min="1" placeholder="0" value={item.quantity} onChange={e => updateItem(index, { quantity: e.target.value })} error={errors[`quantity-${index}`]} /></div>
-                    <div className="col-span-3"><Input label={index === 0 ? 'Price' : undefined} required type="number" min="1" placeholder="0" value={item.amount} onChange={e => updateItem(index, { amount: e.target.value })} error={errors[`amount-${index}`]} /></div>
-                    <div className="col-span-1 pt-8"><button type="button" onClick={() => removeItem(index)} disabled={items.length === 1} className="p-2 text-red-500 hover:bg-red-50 disabled:text-slate-300 disabled:hover:bg-transparent rounded-lg"><Trash2 className="w-4 h-4" /></button></div>
+
+                    {/* Row 2 (mobile) / Col 2 (desktop): Quantity */}
+                    <div className="w-full md:w-28">
+                      <Input
+                        label={index === 0 ? 'Qty' : undefined}
+                        required
+                        type="number"
+                        min="1"
+                        placeholder="0"
+                        value={item.quantity}
+                        onChange={e => updateItem(index, { quantity: e.target.value })}
+                        error={errors[`quantity-${index}`]}
+                      />
+                    </div>
+
+                    {/* Row 3 (mobile) / Col 3 (desktop): Price */}
+                    <div className="w-full md:w-32">
+                      <Input
+                        label={index === 0 ? 'Price' : undefined}
+                        required
+                        type="number"
+                        min="1"
+                        placeholder="0"
+                        value={item.amount}
+                        onChange={e => updateItem(index, { amount: e.target.value })}
+                        error={errors[`amount-${index}`]}
+                      />
+                    </div>
+
+                    {/* Remove button */}
+                    <div className="flex md:pt-8">
+                      <button
+                        type="button"
+                        onClick={() => removeItem(index)}
+                        disabled={items.length === 1}
+                        className="p-2 text-red-500 hover:bg-red-50 disabled:text-slate-300 disabled:hover:bg-transparent rounded-lg"
+                        title="Remove item"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

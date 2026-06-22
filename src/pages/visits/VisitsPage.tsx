@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { MapPin, Clock, Camera, CheckCircle, Search, Play, Navigation, Image, X, RefreshCw, FlipHorizontal } from 'lucide-react';
+import { MapPin, Clock, Camera, CheckCircle, Search, Play, Navigation, Image, X, RefreshCw, FlipHorizontal, QrCode } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Camera as CapCamera, CameraResultType, CameraSource, CameraPermissionState } from '@capacitor/camera';
 import { AppLayout } from '../../components/layout/AppLayout';
@@ -12,7 +12,9 @@ import { useAuthStore } from '../../store/authStore';
 import { visitsApi } from '../../api/visitsApi';
 import { shopsApi } from '../../api/shopsApi';
 import { uploadsApi } from '../../api/uploadsApi';
+import { imeiApi } from '../../api/imeiApi';
 import type { Visit, Shop } from '../../types';
+import type { IMEIVerificationResult } from '../../types/imei';
 import { format, formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -53,7 +55,6 @@ export const VisitsPage: React.FC = () => {
 
   // ── Data state ──────────────────────────────────────────────────────────────
   const [visits, setVisits] = useState<Visit[]>(() => {
-    // Immediately seed from cache if fresh
     if (visitsCache && user && visitsCache.userId === user.id &&
         Date.now() - visitsCache.ts < CACHE_TTL_MS) {
       return visitsCache.data;
@@ -83,6 +84,15 @@ export const VisitsPage: React.FC = () => {
   const [cameraError, setCameraError] = useState('');
   const [countdown, setCountdown] = useState(0);
   const [reviewPhoto, setReviewPhoto] = useState<{ slot: PhotoSlot; dataUrl: string } | null>(null);
+
+  // ── IMEI Verification state ──────────────────────────────────────────────
+  const [imeiModal, setImeiModal] = useState(false);
+  const [imeiInput, setImeiInput] = useState('');
+  const [imeiLoading, setImeiLoading] = useState(false);
+  const [imeiResult, setImeiResult] = useState<IMEIVerificationResult | null>(null);
+  const [imeiError, setImeiError] = useState('');
+  const [scannedIMEIs, setScannedIMEIs] = useState<Set<string>>(new Set());
+  const imeiInputRef = useRef<HTMLInputElement>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -128,17 +138,16 @@ export const VisitsPage: React.FC = () => {
       Date.now() - visitsCache.ts < CACHE_TTL_MS;
 
     if (isCacheFresh) {
-      // Already seeded from cache — do a silent background refresh
       loadVisits(true);
     } else {
       loadVisits(false);
     }
   }, [user, loadVisits]);
 
-  // ── Lazy load shops — only when Start Visit modal opens ──────────────────
+  // ── Lazy load shops ──────────────────────────────────────────────────────
   const openStartVisitModal = useCallback(async () => {
     setStartVisitModal(true);
-    if (shops.length > 0) return; // already loaded
+    if (shops.length > 0) return;
     setShopsLoading(true);
     try {
       const s = await shopsApi.getAll(user?.id);
@@ -161,16 +170,11 @@ export const VisitsPage: React.FC = () => {
     setCountdown(0);
   }, []);
 
-  /**
-   * Native (Android/iOS): uses @capacitor/camera — handles permissions + system camera UI.
-   * Web (browser): falls back to getUserMedia inline preview.
-   */
   const openCamera = useCallback(async (slot: PhotoSlot) => {
     setCameraError('');
 
     if (IS_NATIVE) {
       try {
-        // Request permission first
         const perms = await CapCamera.requestPermissions({ permissions: ['camera', 'photos'] });
         const cameraGranted: CameraPermissionState = perms.camera;
         if (cameraGranted === 'denied') {
@@ -191,14 +195,12 @@ export const VisitsPage: React.FC = () => {
           setReviewPhoto({ slot, dataUrl: photo.dataUrl });
         }
       } catch (err: any) {
-        // User cancelled — not an error
         if (err?.message?.includes('cancelled') || err?.message?.includes('canceled')) return;
         toast.error('Could not open camera: ' + (err?.message ?? 'Unknown error'));
       }
       return;
     }
 
-    // ── Web fallback: inline getUserMedia preview ──────────────────────────
     setActiveCameraSlot(slot);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -269,7 +271,7 @@ export const VisitsPage: React.FC = () => {
         longitude: location?.lng,
       });
       setVisits(prev => [visit, ...prev]);
-      visitsCache = null; // invalidate cache
+      visitsCache = null;
       setStartVisitModal(false);
       setSelectedShop(null);
       toast.success(`✅ Visit started at ${selectedShop.shopName}`);
@@ -308,12 +310,84 @@ export const VisitsPage: React.FC = () => {
       setCompleteModal(false);
       setRemarks('');
       setCapturedPhotos({});
+      setScannedIMEIs(new Set());
       toast.success('✅ Visit completed successfully!');
     } catch (e: any) {
       toast.error(e.message || 'Failed to complete visit');
     } finally {
       setActionLoading(false);
     }
+  };
+
+  // ── IMEI Verification ────────────────────────────────────────────────────
+  const openImeiModal = () => {
+    if (!activeVisit) {
+      toast.error('No active visit found. Please start a visit first.');
+      return;
+    }
+    setImeiModal(true);
+    setImeiInput('');
+    setImeiResult(null);
+    setImeiError('');
+    setTimeout(() => imeiInputRef.current?.focus(), 200);
+  };
+
+  const handleImeiVerify = async () => {
+    const imei = imeiInput.trim();
+    if (!imei) {
+      setImeiError('Please scan or enter a valid IMEI number.');
+      return;
+    }
+    if (!/^\d+$/.test(imei)) {
+      setImeiError('IMEI must contain only numeric digits.');
+      return;
+    }
+    if (imei.length < 14 || imei.length > 16) {
+      setImeiError('Please enter a valid IMEI number (14-16 digits).');
+      return;
+    }
+    if (scannedIMEIs.has(imei)) {
+      toast.error('This IMEI has already been verified in this visit.');
+      return;
+    }
+
+    setImeiLoading(true);
+    setImeiError('');
+    setImeiResult(null);
+
+    try {
+      const resp = await imeiApi.verify({
+        visitId: activeVisit!.id,
+        shopId: activeVisit!.shopId,
+        shopName: activeVisit!.shopName || '',
+        IMEI: imei,
+        Lat: location?.lat,
+        Long: location?.lng,
+      });
+
+      if (resp.status === '1' && resp.data) {
+        setImeiResult(resp.data);
+        setScannedIMEIs(prev => new Set([...prev, imei]));
+        toast.success('✅ IMEI verified successfully!');
+      } else {
+        setImeiError(resp.message || 'No record found against this IMEI number.');
+        if (resp.message?.toLowerCase().includes('no record')) {
+          toast.error('No record found for this IMEI.');
+        }
+      }
+    } catch (e: any) {
+      setImeiError('Unable to verify IMEI. Please try again.');
+      toast.error(e.message || 'Verification failed');
+    } finally {
+      setImeiLoading(false);
+    }
+  };
+
+  const closeImeiModal = () => {
+    setImeiModal(false);
+    setImeiInput('');
+    setImeiResult(null);
+    setImeiError('');
   };
 
   // ── Derived data ─────────────────────────────────────────────────────────
@@ -334,7 +408,7 @@ export const VisitsPage: React.FC = () => {
 
         {/* Active Visit Banner */}
         {activeVisit && (
-          <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl p-4 flex items-center justify-between">
+          <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                 <Play className="w-5 h-5 text-white fill-white" />
@@ -346,9 +420,14 @@ export const VisitsPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => { setCapturedPhotos({}); setCompleteModal(true); }}>
-              Complete Visit
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" leftIcon={<QrCode className="w-3.5 h-3.5" />} onClick={openImeiModal} className="text-white border-white hover:bg-white/10">
+                IMEI Verification
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => { setCapturedPhotos({}); setCompleteModal(true); }}>
+                Complete Visit
+              </Button>
+            </div>
           </div>
         )}
 
@@ -735,6 +814,110 @@ export const VisitsPage: React.FC = () => {
               className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
           </div>
+        </div>
+      </Modal>
+
+      {/* ── IMEI Verification Modal ── */}
+      <Modal
+        isOpen={imeiModal}
+        onClose={closeImeiModal}
+        title="IMEI Verification"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" onClick={closeImeiModal}>Cancel</Button>
+            <Button variant="primary" onClick={handleImeiVerify} isLoading={imeiLoading} disabled={!imeiInput.trim()}>
+              Verify
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {/* Auto-selected shop */}
+          {activeVisit && (
+            <div className="bg-slate-50 rounded-xl p-3">
+              <p className="text-xs text-slate-500 font-medium">Shop</p>
+              <p className="text-sm font-semibold text-slate-800 mt-0.5">{activeVisit.shopName}</p>
+            </div>
+          )}
+
+          {/* IMEI Input */}
+          <Input
+            label="Scan IMEI No"
+            required
+            placeholder="Scan or enter IMEI number"
+            value={imeiInput}
+            onChange={e => {
+              setImeiInput(e.target.value);
+              setImeiError('');
+            }}
+            leftIcon={<QrCode className="w-4 h-4" />}
+            error={imeiError}
+            onKeyDown={e => {
+              if (e.key === 'Enter') handleImeiVerify();
+            }}
+            autoFocus
+            ref={imeiInputRef as React.RefObject<HTMLInputElement>}
+          />
+          <p className="text-xs text-slate-400">Barcode scanner supported — just scan directly into the field.</p>
+
+          {/* Verification Result */}
+          {imeiResult && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <p className="text-sm font-semibold text-emerald-700">Verification Result</p>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Shop Name</span>
+                  <span className="font-medium text-slate-800">{imeiResult.ShopName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Customer Name</span>
+                  <span className="font-medium text-slate-800">{imeiResult.CustomerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Company Name</span>
+                  <span className="font-medium text-slate-800">{imeiResult.CompanyName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Region</span>
+                  <span className="font-medium text-slate-800">{imeiResult.Region}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">City</span>
+                  <span className="font-medium text-slate-800">{imeiResult.City}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Product Name</span>
+                  <span className="font-medium text-slate-800">{imeiResult.ProductName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Product Category</span>
+                  <span className="font-medium text-slate-800">{imeiResult.ProductCategory}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">IMEI No</span>
+                  <span className="font-mono font-medium text-slate-800">{imeiResult.IMEINo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Invoice No</span>
+                  <span className="font-medium text-slate-800">{imeiResult.InvoiceNo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Invoice Date</span>
+                  <span className="font-medium text-slate-800">{imeiResult.InvoiceDate}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {imeiError && !imeiResult && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+              <p className="text-sm text-red-600">{imeiError}</p>
+            </div>
+          )}
         </div>
       </Modal>
 

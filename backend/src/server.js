@@ -19,6 +19,7 @@ const reportsRoutes = require('./routes/reports');
 const locationRoutes = require('./routes/location');
 const hrRoutes = require('./routes/hr');
 const { router: uploadsRouter } = require('./routes/uploads');
+const imeiRoutes = require('./routes/imei');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -96,6 +97,7 @@ app.use('/api/reports',    reportsRoutes);
 app.use('/api/location',   locationRoutes);
 app.use('/api/hr',         hrRoutes);
 app.use('/api/uploads',    uploadsRouter);
+app.use('/api/imei',       imeiRoutes);
 
 // 404 handler
 app.use((req, res) => {
