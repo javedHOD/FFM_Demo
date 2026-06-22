@@ -41,3 +41,18 @@ CREATE INDEX IX_IMEI_ScanIMEI ON IMEIVerificationLog(ScanIMEI);
 CREATE INDEX IX_IMEI_IsDeleted ON IMEIVerificationLog(IsDeleted);
 CREATE INDEX IX_IMEI_Composite ON IMEIVerificationLog(VisitId, ScanIMEI, IsDeleted);
 GO
+
+-- Admin settings for IMEI verification
+IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE type='U' AND name='admin_settings')
+CREATE TABLE admin_settings
+(
+    id                INT           PRIMARY KEY IDENTITY(1,1),
+    duplication_check BIT           NOT NULL DEFAULT 0,
+    updated_at        DATETIME      DEFAULT GETDATE(),
+    updated_by        NVARCHAR(255) NULL
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM admin_settings)
+    INSERT INTO admin_settings (duplication_check) VALUES (0);
+GO

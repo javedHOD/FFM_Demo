@@ -638,6 +638,19 @@ const runMigrations = async () => {
       CREATE UNIQUE INDEX UX_shops_shop_name ON shops(shop_name);
   `);
 
+  await pool.request().batch(`
+    IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE type='U' AND name='admin_settings')
+    CREATE TABLE admin_settings (
+      id                INT           PRIMARY KEY IDENTITY(1,1),
+      duplication_check BIT           NOT NULL DEFAULT 0,
+      updated_at        DATETIME      DEFAULT GETDATE(),
+      updated_by        NVARCHAR(255) NULL
+    );
+
+    IF NOT EXISTS (SELECT 1 FROM admin_settings)
+      INSERT INTO admin_settings (duplication_check) VALUES (0);
+  `);
+
   // Seed countries if table is empty
   const { recordset: [cntRow] } = await pool.request().query('SELECT COUNT(*) as cnt FROM countries');
   if (cntRow.cnt === 0) {

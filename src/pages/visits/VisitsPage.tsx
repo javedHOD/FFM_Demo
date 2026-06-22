@@ -346,10 +346,10 @@ export const VisitsPage: React.FC = () => {
       setImeiError('Please enter a valid IMEI number (14-16 digits).');
       return;
     }
-    if (scannedIMEIs.has(imei)) {
-      toast.error('This IMEI has already been verified in this visit.');
-      return;
-    }
+    // if (scannedIMEIs.has(imei)) {
+    //   toast.error('This IMEI has already been verified in this visit.');
+    //   return;
+    // }
 
     setImeiLoading(true);
     setImeiError('');

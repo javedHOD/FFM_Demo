@@ -382,6 +382,20 @@ export const createMockAdapter = (): AxiosAdapter => async (config) => {
       if (found) return ok(config, { status: '1', message: 'IMEI verified successfully.', data: found }, 200);
       return ok(config, { status: '0', message: 'No record found against this IMEI number.' }, 404);
     }
+    if (path === '/imei/settings' && method === 'get') {
+      const key = 'imei_admin_settings';
+      try {
+        const saved = localStorage.getItem(key);
+        if (saved) return ok(config, JSON.parse(saved));
+      } catch {}
+      return ok(config, { success: true, data: { duplicationCheck: false } });
+    }
+    if (path === '/imei/settings' && method === 'put') {
+      const key = 'imei_admin_settings';
+      const payload = { success: true, data: { duplicationCheck: !!body.duplicationCheck }, message: 'Settings saved' };
+      localStorage.setItem(key, JSON.stringify(payload));
+      return ok(config, payload);
+    }
     if (path === '/imei/logs') {
       const logsKey = 'imei_logs_demo';
       try {

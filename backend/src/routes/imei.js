@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../db/connection');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 const https = require('https');
 const http = require('http');
 
@@ -99,6 +99,25 @@ const buildLogFilters = (req) => {
   return { sql, params };
 };
 
+const getDuplicationCheckEnabled = async () => {
+  const { recordset } = await query('SELECT TOP 1 duplication_check FROM admin_settings');
+  if (!recordset.length) return false;
+  return recordset[0].duplication_check === 1 || recordset[0].duplication_check === true;
+};
+
+const mapLogToApiResult = (row) => ({
+  Region: row.Region,
+  City: row.City,
+  ShopName: row.ShopName,
+  CustomerName: row.CustomerName,
+  CompanyName: row.ApiCompanyName,
+  ProductName: row.ProductName,
+  ProductCategory: row.ProductCategory,
+  IMEINo: row.ScanIMEI,
+  InvoiceNo: row.InvoiceNo,
+  InvoiceDate: row.InvoiceDate,
+});
+
 const mapLogRow = (row) => ({
   IMEIVerificationLogId: row.IMEIVerificationLogId,
   PromoterUserId: row.PromoterUserId,
@@ -140,18 +159,38 @@ router.post('/verify', authenticate, async (req, res) => {
     }
 
     const trimmedImei = IMEI.trim();
+    const allowDuplication = await getDuplicationCheckEnabled();
 
-    const { recordset: duplicates } = await query(
-      `SELECT TOP 1 IMEIVerificationLogId FROM IMEIVerificationLog
-       WHERE VisitId = ? AND ScanIMEI = ? AND IsDeleted = 0`,
-      [visitId, trimmedImei]
-    );
+    if (allowDuplication) {
+      const { recordset: existingUserLogs } = await query(
+        `SELECT TOP 1 * FROM IMEIVerificationLog
+         WHERE PromoterUserId = ? AND ScanIMEI = ? AND IsDeleted = 0
+         ORDER BY ScanDatetime DESC`,
+        [req.user.id, trimmedImei]
+      );
 
-    if (duplicates.length > 0) {
-      return res.json({
-        status: '0',
-        message: 'This IMEI has already been verified in this visit.',
-      });
+      if (existingUserLogs.length > 0) {
+        const existing = existingUserLogs[0];
+        console.log(`[IMEI Verify] Returning cached result for user ${req.user.id}, IMEI: ${trimmedImei}`);
+        return res.json({
+          status: '1',
+          message: 'IMEI verified successfully.',
+          data: mapLogToApiResult(existing),
+        });
+      }
+    } else {
+      const { recordset: duplicates } = await query(
+        `SELECT TOP 1 IMEIVerificationLogId FROM IMEIVerificationLog
+         WHERE VisitId = ? AND ScanIMEI = ? AND IsDeleted = 0`,
+        [visitId, trimmedImei]
+      );
+
+      if (duplicates.length > 0) {
+        return res.json({
+          status: '0',
+          message: 'This IMEI has already been verified in this visit.',
+        });
+      }
     }
 
     let apiResult;
@@ -309,6 +348,51 @@ router.get('/logs/export', authenticate, async (req, res) => {
     res.send(csvContent);
   } catch (err) {
     console.error('[IMEI Export] Error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+/**
+ * GET /api/imei/settings
+ * Admin only — returns duplication_check setting
+ */
+router.get('/settings', authenticate, authorize('Admin'), async (req, res) => {
+  try {
+    const enabled = await getDuplicationCheckEnabled();
+    res.json({ success: true, data: { duplicationCheck: enabled } });
+  } catch (err) {
+    console.error('[IMEI Settings] GET error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+/**
+ * PUT /api/imei/settings
+ * Admin only — body: { duplicationCheck: boolean }
+ */
+router.put('/settings', authenticate, authorize('Admin'), async (req, res) => {
+  try {
+    const { duplicationCheck } = req.body;
+    if (typeof duplicationCheck !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'duplicationCheck must be a boolean' });
+    }
+
+    const { recordset } = await query('SELECT TOP 1 id FROM admin_settings');
+    if (recordset.length) {
+      await query(
+        'UPDATE admin_settings SET duplication_check = ?, updated_at = GETDATE(), updated_by = ? WHERE id = ?',
+        [duplicationCheck ? 1 : 0, req.user.fullName, recordset[0].id]
+      );
+    } else {
+      await query(
+        'INSERT INTO admin_settings (duplication_check, updated_by) VALUES (?, ?)',
+        [duplicationCheck ? 1 : 0, req.user.fullName]
+      );
+    }
+
+    res.json({ success: true, data: { duplicationCheck }, message: 'Settings saved' });
+  } catch (err) {
+    console.error('[IMEI Settings] PUT error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

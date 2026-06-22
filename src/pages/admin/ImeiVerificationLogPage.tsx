@@ -54,8 +54,35 @@ export const ImeiVerificationLogPage: React.FC = () => {
     promoterId: '', shopId: '', imei: '', productCategory: '',
   });
   const [search, setSearch] = useState('');
+  const [duplicationCheck, setDuplicationCheck] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
 
-  useEffect(() => { loadLogs(); }, []);
+  useEffect(() => {
+    loadLogs();
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const settings = await imeiApi.getSettings();
+      setDuplicationCheck(settings.duplicationCheck);
+    } catch (e: any) {
+      console.error(e);
+      toast.error('Failed to load IMEI settings');
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      await imeiApi.saveSettings({ duplicationCheck });
+      toast.success('Settings saved');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const loadLogs = async () => {
     if (!user) return;
@@ -129,6 +156,33 @@ export const ImeiVerificationLogPage: React.FC = () => {
             <Button variant="primary" size="sm" leftIcon={<Search className="w-4 h-4" />} onClick={loadLogs}>Refresh</Button>
           </div>
         </div>
+
+        <Card>
+          <div className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={duplicationCheck}
+                onChange={e => setDuplicationCheck(e.target.checked)}
+                className="w-4 h-4 mt-0.5 accent-blue-600 flex-shrink-0"
+              />
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Allow IMEI duplication</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  When enabled, each user verifies an IMEI once — API call and log entry happen only one time per user.
+                </p>
+              </div>
+            </label>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSaveSettings}
+              isLoading={savingSettings}
+            >
+              Save
+            </Button>
+          </div>
+        </Card>
 
         <Input
           placeholder="Search by IMEI, shop, promoter, product..."

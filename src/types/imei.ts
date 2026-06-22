@@ -11,6 +11,10 @@ export interface IMEIVerificationResult {
   InvoiceDate: string;
 }
 
+export interface ImeiAdminSettings {
+  duplicationCheck: boolean;
+}
+
 export interface IMEIVerificationLog {
   IMEIVerificationLogId: string;
   PromoterUserId: number;
