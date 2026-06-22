@@ -53,10 +53,11 @@ const callExternalImeiApi = (imei) =>
         res.on('end', () => {
           try {
             console.log(`[IMEI API] Response status: ${res.statusCode}`);
+            if (data) console.log(`[IMEI API] Raw response: ${data.substring(0, 500)}`);
             resolve(parseApiResponse(data));
           } catch (err) {
             console.error('[IMEI API] JSON parse error:', err.message);
-            resolve(null);
+            resolve({ found: false, data: null, message: 'Invalid API response.', statusCode: null, raw: null });
           }
         });
       }
@@ -153,10 +154,10 @@ router.post('/verify', authenticate, async (req, res) => {
       });
     }
 
-    let resultData;
+    let apiResult;
     try {
       console.log(`[IMEI Verify] Calling external API for IMEI: ${trimmedImei}`);
-      resultData = await callExternalImeiApi(trimmedImei);
+      apiResult = await callExternalImeiApi(trimmedImei);
     } catch (apiErr) {
       console.error('[IMEI Verify] External API call failed:', apiErr.message);
       return res.json({
@@ -165,13 +166,16 @@ router.post('/verify', authenticate, async (req, res) => {
       });
     }
 
-    if (!resultData) {
-      console.log('[IMEI Verify] No record found');
+    if (!apiResult?.found || !apiResult.data) {
+      const notFoundMessage = apiResult?.message || 'No record found against this IMEI number.';
+      console.log(`[IMEI Verify] No record found — StatusCode: ${apiResult?.statusCode ?? 'n/a'}, Message: ${notFoundMessage}`);
       return res.json({
         status: '0',
-        message: 'No record found against this IMEI number.',
+        message: notFoundMessage,
       });
     }
+
+    const resultData = apiResult.data;
 
     const logId = generateLogId();
     const invoiceDateRaw = pickField(resultData, 'InvoiceDate', 'invoiceDate');
@@ -205,7 +209,7 @@ router.post('/verify', authenticate, async (req, res) => {
         Lat || null,
         Long || null,
         new Date(),
-        JSON.stringify(resultData),
+        JSON.stringify(apiResult.raw ?? resultData),
         0,
         req.user.fullName,
       ]
