@@ -5,88 +5,65 @@ const { authenticate } = require('../middleware/auth');
 const https = require('https');
 const http = require('http');
 
-const IMEI_API_URL = 'http://dist.siccotelmis.com/api/DistributorAppAPI/IMEIList';
-const IMEI_API_TOKEN = 'A7K9X2M8P4Q1R6T3Y5U8W2N7Z4B1';
+const IMEI_API_URL = process.env.IMEI_API_URL || 'http://dist.siccotelmis.com/api/DistributorAppAPI/IMEIList';
+const IMEI_API_TOKEN = process.env.IMEI_API_TOKEN || 'A7K9X2M8P4Q1R6T3Y5U8W2N7Z4B1';
 
-// Test IMEI numbers that return dummy data (for development/testing)
-const DUMMY_IMEIS = new Set(['865901088912346', '356789112233445', '490154203237518']);
+const generateLogId = () =>
+  `IMEI-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
 
-const DUMMY_DATA = {
-  '865901088912346': {
-    Region: 'Riyadh', City: 'Riyadh', ShopName: 'Ronin',
-    CustomerName: 'Omar Al-Shamri', CompanyName: 'Siccotel',
-    ProductName: 'Samsung Galaxy A15', ProductCategory: 'Mobile',
-    IMEINo: '865901088912346', InvoiceNo: 'INV-1001', InvoiceDate: '2026-06-18',
-  },
-  '356789112233445': {
-    Region: 'Eastern Region', City: 'Dammam', ShopName: 'SF Traders',
-    CustomerName: 'Ahmed Saleh', CompanyName: 'Siccotel',
-    ProductName: 'iPhone 13', ProductCategory: 'Mobile',
-    IMEINo: '356789112233445', InvoiceNo: 'INV-1002', InvoiceDate: '2026-06-17',
-  },
-  '490154203237518': {
-    Region: 'Makkah', City: 'Jeddah', ShopName: 'City Mobile Hub',
-    CustomerName: 'Faisal Khan', CompanyName: 'Siccotel',
-    ProductName: 'Infinix Note 40', ProductCategory: 'Mobile',
-    IMEINo: '490154203237518', InvoiceNo: 'INV-1003', InvoiceDate: '2026-06-16',
-  },
+const pickField = (data, ...keys) => {
+  for (const key of keys) {
+    const value = data?.[key];
+    if (value !== undefined && value !== null && value !== '') return value;
+  }
+  return null;
 };
 
-const generateLogId = () => {
-  return 'IMEI-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 8);
+const parseApiResponse = (raw) => {
+  const parsed = JSON.parse(raw);
+
+  if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+  if (Array.isArray(parsed?.data) && parsed.data.length > 0) return parsed.data[0];
+  if (Array.isArray(parsed?.Result) && parsed.Result.length > 0) return parsed.Result[0];
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+
+  return null;
 };
 
-/**
- * Call external IMEI API
- */
-const callExternalImeiApi = async (imei) => {
-  return new Promise((resolve, reject) => {
+const callExternalImeiApi = (imei) =>
+  new Promise((resolve, reject) => {
     const postData = JSON.stringify({ Token: IMEI_API_TOKEN, IMEI: imei });
     const url = new URL(IMEI_API_URL);
     const clientLib = url.protocol === 'https:' ? https : http;
 
-    const options = {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData),
-        'Accept': 'application/json',
+    const req = clientLib.request(
+      url.href,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData),
+          Accept: 'application/json',
+        },
+        timeout: 15000,
       },
-      timeout: 15000,
-    };
-
-    const req = clientLib.request(url.href, options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try {
-          console.log(`[IMEI API] Response status: ${res.statusCode}`);
-          console.log(`[IMEI API] Raw response: ${data.substring(0, 500)}`);
-          
-          const parsed = JSON.parse(data);
-          
-          // Handle different response formats
-          let result;
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            result = parsed[0];
-          } else if (parsed.data && Array.isArray(parsed.data) && parsed.data.length > 0) {
-            result = parsed.data[0];
-          } else if (parsed.Result && Array.isArray(parsed.Result) && parsed.Result.length > 0) {
-            result = parsed.Result[0];
-          } else if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-            result = parsed;
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          try {
+            console.log(`[IMEI API] Response status: ${res.statusCode}`);
+            resolve(parseApiResponse(data));
+          } catch (err) {
+            console.error('[IMEI API] JSON parse error:', err.message);
+            resolve(null);
           }
-          
-          resolve(result || null);
-        } catch (err) {
-          console.error(`[IMEI API] JSON parse error:`, err.message);
-          resolve(null);
-        }
-      });
-    });
+        });
+      }
+    );
 
     req.on('error', (err) => {
-      console.error(`[IMEI API] Request error:`, err.message);
+      console.error('[IMEI API] Request error:', err.message);
       reject(err);
     });
 
@@ -98,7 +75,50 @@ const callExternalImeiApi = async (imei) => {
     req.write(postData);
     req.end();
   });
+
+const buildLogFilters = (req) => {
+  const { dateFrom, dateTo, region, city, promoterId, shopId, imei, productCategory } = req.query;
+  const params = [];
+  let sql = ' WHERE l.IsDeleted = 0';
+
+  if (dateFrom) { sql += ' AND CAST(l.ScanDatetime AS DATE) >= ?'; params.push(dateFrom); }
+  if (dateTo) { sql += ' AND CAST(l.ScanDatetime AS DATE) <= ?'; params.push(dateTo); }
+  if (region) { sql += ' AND l.Region = ?'; params.push(region); }
+  if (city) { sql += ' AND l.City = ?'; params.push(city); }
+  if (promoterId) { sql += ' AND l.PromoterUserId = ?'; params.push(Number(promoterId)); }
+  if (shopId) { sql += ' AND l.ShopId = ?'; params.push(Number(shopId)); }
+  if (imei) { sql += ' AND l.ScanIMEI LIKE ?'; params.push(`%${imei}%`); }
+  if (productCategory) { sql += ' AND l.ProductCategory = ?'; params.push(productCategory); }
+
+  if (req.user.roleName !== 'Admin') {
+    sql += ' AND l.PromoterUserId = ?';
+    params.push(req.user.id);
+  }
+
+  return { sql, params };
 };
+
+const mapLogRow = (row) => ({
+  IMEIVerificationLogId: row.IMEIVerificationLogId,
+  PromoterUserId: row.PromoterUserId,
+  PromoterName: row.PromoterName,
+  VisitId: row.VisitId,
+  ShopId: row.ShopId,
+  ShopName: row.ShopName || row.visit_shop_name,
+  Region: row.Region,
+  City: row.City,
+  ScanIMEI: row.ScanIMEI,
+  InvoiceNo: row.InvoiceNo,
+  InvoiceDate: row.InvoiceDate,
+  CustomerName: row.CustomerName,
+  ApiCompanyName: row.ApiCompanyName,
+  ProductName: row.ProductName,
+  ProductCategory: row.ProductCategory,
+  Lat: row.Lat,
+  Long: row.Long,
+  ScanDatetime: row.ScanDatetime,
+  IsDummy: row.IsDummy === 1,
+});
 
 /**
  * POST /api/imei/verify
@@ -120,7 +140,6 @@ router.post('/verify', authenticate, async (req, res) => {
 
     const trimmedImei = IMEI.trim();
 
-    // Check for duplicate within same visit
     const { recordset: duplicates } = await query(
       `SELECT TOP 1 IMEIVerificationLogId FROM IMEIVerificationLog
        WHERE VisitId = ? AND ScanIMEI = ? AND IsDeleted = 0`,
@@ -135,25 +154,15 @@ router.post('/verify', authenticate, async (req, res) => {
     }
 
     let resultData;
-    let isDummy = false;
-
-    // Check if it's a dummy/test IMEI
-    if (DUMMY_IMEIS.has(trimmedImei)) {
-      console.log('[IMEI Verify] Using dummy data for test IMEI');
-      resultData = DUMMY_DATA[trimmedImei];
-      isDummy = true;
-    } else {
-      // Call live external API
+    try {
       console.log(`[IMEI Verify] Calling external API for IMEI: ${trimmedImei}`);
-      try {
-        resultData = await callExternalImeiApi(trimmedImei);
-      } catch (apiErr) {
-        console.error('[IMEI Verify] External API call failed:', apiErr.message);
-        return res.json({
-          status: '0',
-          message: 'Unable to verify IMEI. Please try again.',
-        });
-      }
+      resultData = await callExternalImeiApi(trimmedImei);
+    } catch (apiErr) {
+      console.error('[IMEI Verify] External API call failed:', apiErr.message);
+      return res.json({
+        status: '0',
+        message: 'Unable to verify IMEI. Please try again.',
+      });
     }
 
     if (!resultData) {
@@ -164,11 +173,9 @@ router.post('/verify', authenticate, async (req, res) => {
       });
     }
 
-    console.log('[IMEI Verify] Record found, saving to database...');
-
-    // Save verification log to database
     const logId = generateLogId();
-    const invoiceDate = resultData.InvoiceDate ? new Date(resultData.InvoiceDate) : null;
+    const invoiceDateRaw = pickField(resultData, 'InvoiceDate', 'invoiceDate');
+    const invoiceDate = invoiceDateRaw ? new Date(invoiceDateRaw) : null;
 
     await query(
       `INSERT INTO IMEIVerificationLog (
@@ -186,20 +193,20 @@ router.post('/verify', authenticate, async (req, res) => {
         visitId,
         shopId,
         shopName || null,
-        resultData.Region || resultData.region || null,
-        resultData.City || resultData.city || null,
+        pickField(resultData, 'Region', 'region'),
+        pickField(resultData, 'City', 'city'),
         trimmedImei,
-        resultData.InvoiceNo || resultData.invoiceNo || null,
+        pickField(resultData, 'InvoiceNo', 'invoiceNo'),
         invoiceDate,
-        resultData.CustomerName || resultData.customerName || null,
-        resultData.CompanyName || resultData.companyName || null,
-        resultData.ProductName || resultData.productName || null,
-        resultData.ProductCategory || resultData.productCategory || null,
+        pickField(resultData, 'CustomerName', 'customerName'),
+        pickField(resultData, 'CompanyName', 'companyName'),
+        pickField(resultData, 'ProductName', 'productName'),
+        pickField(resultData, 'ProductCategory', 'productCategory'),
         Lat || null,
         Long || null,
         new Date(),
         JSON.stringify(resultData),
-        isDummy ? 1 : 0,
+        0,
         req.user.fullName,
       ]
     );
@@ -223,63 +230,23 @@ router.post('/verify', authenticate, async (req, res) => {
  */
 router.get('/logs', authenticate, async (req, res) => {
   try {
-    const { dateFrom, dateTo, region, city, promoterId, shopId, imei, productCategory } = req.query;
+    const { sql: filterSql, params } = buildLogFilters(req);
 
-    let sql = `
-      SELECT l.*,
-             u.full_name as promoter_user_name,
-             s.shop_name as visit_shop_name,
-             v.visit_start_time
-      FROM IMEIVerificationLog l
-      LEFT JOIN users u ON l.PromoterUserId = u.id
-      LEFT JOIN shops s ON l.ShopId = s.id
-      LEFT JOIN visits v ON l.VisitId = v.id
-      WHERE l.IsDeleted = 0
-    `;
-    const params = [];
+    const { recordset: rows } = await query(
+      `SELECT l.*,
+              u.full_name as promoter_user_name,
+              s.shop_name as visit_shop_name,
+              v.visit_start_time
+       FROM IMEIVerificationLog l
+       LEFT JOIN users u ON l.PromoterUserId = u.id
+       LEFT JOIN shops s ON l.ShopId = s.id
+       LEFT JOIN visits v ON l.VisitId = v.id
+       ${filterSql}
+       ORDER BY l.ScanDatetime DESC`,
+      params
+    );
 
-    if (dateFrom) { sql += ' AND CAST(l.ScanDatetime AS DATE) >= ?'; params.push(dateFrom); }
-    if (dateTo) { sql += ' AND CAST(l.ScanDatetime AS DATE) <= ?'; params.push(dateTo); }
-    if (region) { sql += ' AND l.Region = ?'; params.push(region); }
-    if (city) { sql += ' AND l.City = ?'; params.push(city); }
-    if (promoterId) { sql += ' AND l.PromoterUserId = ?'; params.push(Number(promoterId)); }
-    if (shopId) { sql += ' AND l.ShopId = ?'; params.push(Number(shopId)); }
-    if (imei) { sql += ' AND l.ScanIMEI LIKE ?'; params.push(`%${imei}%`); }
-    if (productCategory) { sql += ' AND l.ProductCategory = ?'; params.push(productCategory); }
-
-    // Non-admin users can only see their own logs
-    if (req.user.roleName !== 'Admin') {
-      sql += ' AND l.PromoterUserId = ?';
-      params.push(req.user.id);
-    }
-
-    sql += ' ORDER BY l.ScanDatetime DESC';
-
-    const { recordset: rows } = await query(sql, params);
-
-    const logs = rows.map(row => ({
-      IMEIVerificationLogId: row.IMEIVerificationLogId,
-      PromoterUserId: row.PromoterUserId,
-      PromoterName: row.PromoterName,
-      VisitId: row.VisitId,
-      ShopId: row.ShopId,
-      ShopName: row.ShopName || row.visit_shop_name,
-      Region: row.Region,
-      City: row.City,
-      ScanIMEI: row.ScanIMEI,
-      InvoiceNo: row.InvoiceNo,
-      InvoiceDate: row.InvoiceDate,
-      CustomerName: row.CustomerName,
-      ApiCompanyName: row.ApiCompanyName,
-      ProductName: row.ProductName,
-      ProductCategory: row.ProductCategory,
-      Lat: row.Lat,
-      Long: row.Long,
-      ScanDatetime: row.ScanDatetime,
-      IsDummy: row.IsDummy === 1,
-    }));
-
-    res.json({ success: true, data: logs });
+    res.json({ success: true, data: rows.map(mapLogRow) });
   } catch (err) {
     console.error('[IMEI Logs] Error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -292,60 +259,47 @@ router.get('/logs', authenticate, async (req, res) => {
  */
 router.get('/logs/export', authenticate, async (req, res) => {
   try {
-    const { dateFrom, dateTo, region, city, promoterId, shopId, imei, productCategory } = req.query;
+    const { sql: filterSql, params } = buildLogFilters(req);
 
-    let sql = `
-      SELECT l.PromoterName, l.ShopName, l.Region, l.City,
-             l.ScanIMEI, l.InvoiceNo, l.InvoiceDate, l.CustomerName,
-             l.ApiCompanyName, l.ProductName, l.ProductCategory,
-             l.Lat, l.Long, l.ScanDatetime
-      FROM IMEIVerificationLog l
-      WHERE l.IsDeleted = 0
-    `;
-    const params = [];
+    const { recordset: rows } = await query(
+      `SELECT l.PromoterName, l.ShopName, l.Region, l.City,
+              l.ScanIMEI, l.InvoiceNo, l.InvoiceDate, l.CustomerName,
+              l.ApiCompanyName, l.ProductName, l.ProductCategory,
+              l.Lat, l.Long, l.ScanDatetime
+       FROM IMEIVerificationLog l
+       ${filterSql}
+       ORDER BY l.ScanDatetime DESC`,
+      params
+    );
 
-    if (dateFrom) { sql += ' AND CAST(l.ScanDatetime AS DATE) >= ?'; params.push(dateFrom); }
-    if (dateTo) { sql += ' AND CAST(l.ScanDatetime AS DATE) <= ?'; params.push(dateTo); }
-    if (region) { sql += ' AND l.Region = ?'; params.push(region); }
-    if (city) { sql += ' AND l.City = ?'; params.push(city); }
-    if (promoterId) { sql += ' AND l.PromoterUserId = ?'; params.push(Number(promoterId)); }
-    if (shopId) { sql += ' AND l.ShopId = ?'; params.push(Number(shopId)); }
-    if (imei) { sql += ' AND l.ScanIMEI LIKE ?'; params.push(`%${imei}%`); }
-    if (productCategory) { sql += ' AND l.ProductCategory = ?'; params.push(productCategory); }
+    const headers = [
+      'Promoter Name', 'Shop Name', 'Region', 'City', 'Scan IMEI',
+      'Invoice No', 'Invoice Date', 'Customer Name', 'Company Name',
+      'Product Name', 'Product Category', 'Lat', 'Long', 'Scan Datetime',
+    ];
 
-    if (req.user.roleName !== 'Admin') {
-      sql += ' AND l.PromoterUserId = ?';
-      params.push(req.user.id);
-    }
+    const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
-    sql += ' ORDER BY l.ScanDatetime DESC';
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => [
+        escapeCsv(row.PromoterName),
+        escapeCsv(row.ShopName),
+        escapeCsv(row.Region),
+        escapeCsv(row.City),
+        escapeCsv(row.ScanIMEI),
+        escapeCsv(row.InvoiceNo),
+        escapeCsv(row.InvoiceDate),
+        escapeCsv(row.CustomerName),
+        escapeCsv(row.ApiCompanyName),
+        escapeCsv(row.ProductName),
+        escapeCsv(row.ProductCategory),
+        row.Lat ?? '',
+        row.Long ?? '',
+        escapeCsv(row.ScanDatetime),
+      ].join(',')),
+    ].join('\n');
 
-    const { recordset: rows } = await query(sql, params);
-
-    const headers = ['Promoter Name', 'Shop Name', 'Region', 'City', 'Scan IMEI', 'Invoice No', 'Invoice Date', 'Customer Name', 'Company Name', 'Product Name', 'Product Category', 'Lat', 'Long', 'Scan Datetime'];
-    const csvRows = [headers.join(',')];
-
-    rows.forEach(row => {
-      const values = [
-        `"${row.PromoterName || ''}"`,
-        `"${row.ShopName || ''}"`,
-        `"${row.Region || ''}"`,
-        `"${row.City || ''}"`,
-        `"${row.ScanIMEI || ''}"`,
-        `"${row.InvoiceNo || ''}"`,
-        `"${row.InvoiceDate || ''}"`,
-        `"${row.CustomerName || ''}"`,
-        `"${row.ApiCompanyName || ''}"`,
-        `"${row.ProductName || ''}"`,
-        `"${row.ProductCategory || ''}"`,
-        row.Lat || '',
-        row.Long || '',
-        `"${row.ScanDatetime || ''}"`,
-      ];
-      csvRows.push(values.join(','));
-    });
-
-    const csvContent = csvRows.join('\n');
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="imei_verification_log_${Date.now()}.csv"`);
     res.send(csvContent);
