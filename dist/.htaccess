@@ -1,0 +1,11 @@
+Options -MultiViews
+RewriteEngine On
+
+# 1. Forceful HTTPS to HTTP Redirect
+RewriteCond %{HTTPS} on
+RewriteRule ^(.*)$ http://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+# 2. React Router SPA Routing (Fallback to index.html)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]

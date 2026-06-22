@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { MapPin, Clock, Camera, CheckCircle, Search, Play, Navigation, Image, X, RefreshCw, FlipHorizontal, QrCode } from 'lucide-react';
+import { MapPin, Clock, Camera, CheckCircle, Search, Play, Navigation, Image, X, RefreshCw, FlipHorizontal, QrCode, ScanLine } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Camera as CapCamera, CameraResultType, CameraSource, CameraPermissionState } from '@capacitor/camera';
 import { AppLayout } from '../../components/layout/AppLayout';
@@ -8,6 +8,8 @@ import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
+import { BarcodeScannerOverlay } from '../../components/scanner/BarcodeScannerOverlay';
+import { extractImeiFromScan } from '../../utils/imeiScan';
 import { useAuthStore } from '../../store/authStore';
 import { visitsApi } from '../../api/visitsApi';
 import { shopsApi } from '../../api/shopsApi';
@@ -19,6 +21,9 @@ import { format, formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 
 const IS_NATIVE = Capacitor.isNativePlatform();
+const IS_MOBILE =
+  IS_NATIVE ||
+  /Android|iPhone|iPad|iPod|Mobile/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '');
 
 type PhotoSlot = 'OutsideShop' | 'ShelfPhoto' | 'SelfieWithShopkeeper';
 
@@ -92,6 +97,7 @@ export const VisitsPage: React.FC = () => {
   const [imeiResult, setImeiResult] = useState<IMEIVerificationResult | null>(null);
   const [imeiError, setImeiError] = useState('');
   const [scannedIMEIs, setScannedIMEIs] = useState<Set<string>>(new Set());
+  const [imeiScannerOpen, setImeiScannerOpen] = useState(false);
   const imeiInputRef = useRef<HTMLInputElement>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -385,10 +391,40 @@ export const VisitsPage: React.FC = () => {
 
   const closeImeiModal = () => {
     setImeiModal(false);
+    setImeiScannerOpen(false);
     setImeiInput('');
     setImeiResult(null);
     setImeiError('');
   };
+
+  const openImeiScanner = useCallback(async () => {
+    if (IS_NATIVE) {
+      try {
+        const perms = await CapCamera.requestPermissions({ permissions: ['camera'] });
+        if (perms.camera === 'denied') {
+          toast.error('Camera permission denied. Enable it in Settings.');
+          return;
+        }
+      } catch {
+        toast.error('Could not request camera permission.');
+        return;
+      }
+    }
+    setImeiScannerOpen(true);
+  }, []);
+
+  const handleImeiBarcodeScan = useCallback((raw: string) => {
+    const value = extractImeiFromScan(raw);
+    if (!value) {
+      toast.error('Could not read IMEI from scan. Try again.');
+      return;
+    }
+    setImeiInput(value);
+    setImeiError('');
+    setImeiScannerOpen(false);
+    toast.success('IMEI scanned');
+    setTimeout(() => imeiInputRef.current?.focus(), 100);
+  }, []);
 
   // ── Derived data ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -852,6 +888,18 @@ export const VisitsPage: React.FC = () => {
               setImeiError('');
             }}
             leftIcon={<QrCode className="w-4 h-4" />}
+            rightIcon={
+              IS_MOBILE ? (
+                <button
+                  type="button"
+                  onClick={openImeiScanner}
+                  className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors"
+                  aria-label="Open camera scanner"
+                >
+                  <ScanLine className="w-5 h-5" />
+                </button>
+              ) : undefined
+            }
             error={imeiError}
             onKeyDown={e => {
               if (e.key === 'Enter') handleImeiVerify();
@@ -859,7 +907,11 @@ export const VisitsPage: React.FC = () => {
             autoFocus
             ref={imeiInputRef as React.RefObject<HTMLInputElement>}
           />
-          <p className="text-xs text-slate-400">Barcode scanner supported — just scan directly into the field.</p>
+          <p className="text-xs text-slate-400">
+            {IS_MOBILE
+              ? 'Tap the scan button to use your camera, or type / use a hardware scanner.'
+              : 'Barcode scanner supported — just scan directly into the field.'}
+          </p>
 
           {/* Verification Result */}
           {imeiResult && (
@@ -920,6 +972,12 @@ export const VisitsPage: React.FC = () => {
           )}
         </div>
       </Modal>
+
+      <BarcodeScannerOverlay
+        isOpen={imeiScannerOpen}
+        onClose={() => setImeiScannerOpen(false)}
+        onScan={handleImeiBarcodeScan}
+      />
 
       {/* ── Visit Detail Modal ── */}
       <Modal
