@@ -3,16 +3,16 @@ import { useAuthStore } from '../store/authStore';
 import { createMockAdapter } from './mockAdapter';
 import { redirectToLogin } from '../utils/navigation';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://104.238.162.4:3500/api' //'http://localhost:5000/api';
+const API_BASE_URL = 'http://192.168.0.103:3500/api' //import.meta.env.VITE_API_URL || 'http://104.238.162.4:3500/api' //'http://localhost:5000/api';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
-if (import.meta.env.VITE_USE_MOCK === 'true') {
-  apiClient.defaults.adapter = createMockAdapter();
-}
+// if (import.meta.env.VITE_USE_MOCK === 'true') {
+//   apiClient.defaults.adapter = createMockAdapter();
+// }
 
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
