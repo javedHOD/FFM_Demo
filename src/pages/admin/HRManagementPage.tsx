@@ -39,25 +39,18 @@ export const HRManagementPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [activeTab]);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [emp, des, dept, shiftData, att, appr] = await Promise.all([
-        hrApi.getEmployees(),
-        hrApi.getDesignations(),
-        hrApi.getDepartments(),
-        hrApi.getShifts(),
-        hrApi.getAttendanceRecords(),
-        hrApi.getApprovalRequests(),
-      ]);
-      setEmployees(emp);
-      setDesignations(des);
-      setDepartments(dept);
-      setShifts(shiftData);
-      setAttendanceRecords(att);
-      setApprovalRequests(appr);
+      const data = await hrApi.getHrManagementPage();
+      setEmployees(data.employees);
+      setDesignations(data.designations);
+      setDepartments(data.departments);
+      setShifts(data.shifts);
+      setAttendanceRecords(data.attendanceRecords);
+      setApprovalRequests(data.approvalRequests);
     } catch (e) {
       console.error(e);
       toast.error('Failed to load HR data');

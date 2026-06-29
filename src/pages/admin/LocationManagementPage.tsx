@@ -42,19 +42,15 @@ export const LocationManagementPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [activeTab]);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [c, r, ci] = await Promise.all([
-        locationApi.getCountries(),
-        locationApi.getRegions(),
-        locationApi.getCities(),
-      ]);
-      setCountries(c);
-      setRegions(r);
-      setCities(ci);
+      const data = await locationApi.getLocationManagementPage();
+      setCountries(data.countries);
+      setRegions(data.regions);
+      setCities(data.cities);
     } catch (e) {
       console.error(e);
       toast.error('Failed to load location data');

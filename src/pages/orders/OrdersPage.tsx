@@ -9,7 +9,6 @@ import { StatusBadge } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
 import { ordersApi } from '../../api/ordersApi';
-import { shopsApi } from '../../api/shopsApi';
 import type { Order, OrderItem, Shop } from '../../types';
 import { products } from '../../api/mockData';
 import { format } from 'date-fns';
@@ -38,19 +37,16 @@ export const OrdersPage: React.FC = () => {
     const load = async () => {
       if (!user) return;
       try {
-        const [o, sh] = await Promise.all([
-          ordersApi.getMy(user.id),
-          shopsApi.getAll(user.id),
-        ]);
-        setOrders(o);
-        setShops(sh);
+        const data = await ordersApi.getOrdersPage();
+        setOrders(data.orders);
+        setShops(data.shops);
       } catch (e) {
         console.error(e);
         toast.error('Failed to load orders');
       } finally { setLoading(false); }
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const resetForm = () => {
     setForm({ shopId: '', orderType: 'RetailerToMD', remarks: '' });

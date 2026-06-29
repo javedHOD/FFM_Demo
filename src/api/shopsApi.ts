@@ -1,7 +1,20 @@
 import apiClient from './client';
-import type { Shop } from '../types';
+import type { Shop, Region, City, User } from '../types';
+
+export interface ShopsPageData {
+  shops: Shop[];
+  regions: Region[];
+  cities: City[];
+  users: Pick<User, 'id' | 'fullName' | 'roleName'>[];
+}
 
 export const shopsApi = {
+  getShopsPage: async (): Promise<ShopsPageData> => {
+    const { data } = await apiClient.get('/shops/shops-page');
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
   getAll: async (userId?: number): Promise<Shop[]> => {
     const url = userId ? `/shops?userId=${userId}` : '/shops';
     const { data } = await apiClient.get(url);

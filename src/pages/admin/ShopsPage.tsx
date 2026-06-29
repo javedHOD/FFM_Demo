@@ -9,7 +9,6 @@ import { StatusBadge, Badge } from '../../components/ui/Badge';
 import { Table, Pagination } from '../../components/ui/Table';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { shopsApi } from '../../api/shopsApi';
-import { usersApi } from '../../api/usersApi';
 import type { Shop, Region, City, User } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -36,11 +35,11 @@ export const ShopsPage: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const [s, r, c, u] = await Promise.all([shopsApi.getAll(), usersApi.getRegions(), usersApi.getCities(), usersApi.getAll()]);
-        setShops(s);
-        setRegions(r);
-        setCities(c);
-        setUsers(u.filter(u => u.roleName === 'Promoter' || u.roleName === 'City Manager'));
+        const data = await shopsApi.getShopsPage();
+        setShops(data.shops);
+        setRegions(data.regions);
+        setCities(data.cities);
+        setUsers(data.users as User[]);
       } catch (e) {
         console.error(e);
         toast.error('Failed to load shops');

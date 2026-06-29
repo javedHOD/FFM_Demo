@@ -12,7 +12,22 @@ import type {
   DailyAttendanceStats,
 } from '../types/hr';
 
+export interface HrManagementPageData {
+  employees: Employee[];
+  designations: Designation[];
+  departments: Department[];
+  shifts: Shift[];
+  attendanceRecords: AttendanceRecord[];
+  approvalRequests: ApprovalRequest[];
+}
+
 export const hrApi = {
+  getHrManagementPage: async (): Promise<HrManagementPageData> => {
+    const { data } = await apiClient.get('/hr/hr-management-page');
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
   // Shifts
   getShifts: async (): Promise<Shift[]> => {
     const { data } = await apiClient.get('/hr/shifts');

@@ -9,8 +9,6 @@ import { StatusBadge, Badge } from '../../components/ui/Badge';
 import { Table, Pagination } from '../../components/ui/Table';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { usersApi } from '../../api/usersApi';
-import { hrApi } from '../../api/hrApi';
-import { shopsApi } from '../../api/shopsApi';
 import type { User, Region, City, Shop } from '../../types';
 import type { Employee } from '../../types/hr';
 import toast from 'react-hot-toast';
@@ -76,18 +74,12 @@ export const UsersPage: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const [u, r, c, emp, sh] = await Promise.all([
-          usersApi.getAll(),
-          usersApi.getRegions(),
-          usersApi.getCities(),
-          hrApi.getEmployees(),
-          shopsApi.getAll(),
-        ]);
-        setUsers(u);
-        setRegions(r);
-        setCities(c);
-        setHrEmployees(emp);
-        setShops(sh);
+        const data = await usersApi.getUsersPage();
+        setUsers(data.users);
+        setRegions(data.regions);
+        setCities(data.cities);
+        setHrEmployees(data.employees);
+        setShops(data.shops);
       } catch (e) {
         console.error(e);
         toast.error('Failed to load users');

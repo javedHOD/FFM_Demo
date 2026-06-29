@@ -60,21 +60,13 @@ export const ReportsPage: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const [v, a, s, o, wd, md] = await Promise.all([
-          reportsApi.getVisitReport(),
-          reportsApi.getAttendanceReport(),
-          reportsApi.getSalesReport(),
-          reportsApi.getOrderReport(),
-          reportsApi.getWeeklyVisitData(),
-          reportsApi.getMonthlySalesData(),
-        ]);
-        console.log('see ', v)
-        setVisits(Array.isArray(v) ? v : []);
-        setAttendance(Array.isArray(a) ? a : []);
-        setSales(Array.isArray(s) ? s : []);
-        setOrders(Array.isArray(o) ? o : []);
-        setWeeklyData(Array.isArray(wd) ? wd : []);
-        setMonthlyData(Array.isArray(md) ? md.slice(-6) : []);
+        const data = await reportsApi.getReportsPage();
+        setVisits(data.visits);
+        setAttendance(data.attendance);
+        setSales(data.sales);
+        setOrders(data.orders);
+        setWeeklyData(data.weeklyData);
+        setMonthlyData(data.monthlyData);
       } catch (e) {
         console.error(e);
         toast.error('Failed to load reports');

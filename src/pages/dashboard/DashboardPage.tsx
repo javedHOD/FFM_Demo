@@ -12,13 +12,9 @@ import { StatusBadge } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
 import { reportsApi } from '../../api/reportsApi';
-import { visitsApi } from '../../api/visitsApi';
-import { ordersApi } from '../../api/ordersApi';
-import { attendanceApi } from '../../api/attendanceApi';
-import { salesApi } from '../../api/salesApi';
 import type { DashboardStats, Visit, Order } from '../../types';
 import { format } from 'date-fns';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
@@ -26,8 +22,8 @@ export const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
-  const [weeklyData, setWeeklyData] = useState<any[]>([]);
-  const [salesData, setSalesData] = useState<any[]>([]);
+  const [weeklyData, setWeeklyData] = useState<{ day: string; visits: number; completed: number }[]>([]);
+  const [salesData, setSalesData] = useState<{ month: string; amount: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [attendanceStatus, setAttendanceStatus] = useState<string>('Not Checked In');
 
@@ -35,25 +31,18 @@ export const DashboardPage: React.FC = () => {
     const fetchData = async () => {
       if (!user) return;
       try {
-        const [statsData, visitsData, ordersData, weeklyD, salesD, todayAttendance] = await Promise.all([
-          reportsApi.getDashboard(user.id, user.roleName),
-          user.roleName === 'Admin' || user.roleName === 'National Sales Manager'
-            ? visitsApi.getAll()
-            : visitsApi.getMy(user.id),
-          user.roleName === 'Admin' || user.roleName === 'National Sales Manager'
-            ? ordersApi.getAll()
-            : ordersApi.getMy(user.id),
-          reportsApi.getWeeklyVisitData(),
-          reportsApi.getMonthlySalesData(),
-          attendanceApi.getTodayStatus(user.id),
-        ]);
-        setStats(statsData);
-        setRecentVisits(visitsData.slice(0, 5));
-        setRecentOrders(ordersData.slice(0, 5));
-        setWeeklyData(weeklyD);
-        setSalesData(salesD.slice(-6));
-        if (todayAttendance) {
-          setAttendanceStatus(todayAttendance.status === 'CheckedIn' ? 'Checked In' : 'Checked Out');
+        const isNSM = user.roleName === 'National Sales Manager';
+        const data = isNSM
+          ? await reportsApi.getDashboardPageManager()
+          : await reportsApi.getDashboardPage();
+
+        setStats(data.stats);
+        setRecentVisits(data.recentVisits);
+        setRecentOrders(data.recentOrders);
+        setWeeklyData(data.weeklyData);
+        setSalesData(data.salesData);
+        if (data.todayAttendance) {
+          setAttendanceStatus(data.todayAttendance.status === 'CheckedIn' ? 'Checked In' : 'Checked Out');
         }
       } catch (err) {
         console.error(err);
@@ -63,7 +52,7 @@ export const DashboardPage: React.FC = () => {
       }
     };
     fetchData();
-  }, [user]);
+  }, [user?.id, user?.roleName]);
 
   if (loading) {
     return (

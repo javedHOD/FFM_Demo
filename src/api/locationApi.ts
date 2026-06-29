@@ -1,7 +1,19 @@
 import apiClient from './client';
 import type { Country, Region, City, LocationHierarchy } from '../types/hr';
 
+export interface LocationManagementPageData {
+  countries: Country[];
+  regions: Region[];
+  cities: City[];
+}
+
 export const locationApi = {
+  getLocationManagementPage: async (): Promise<LocationManagementPageData> => {
+    const { data } = await apiClient.get('/location/location-management-page');
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
   // Countries
   getCountries: async (): Promise<Country[]> => {
     const { data } = await apiClient.get('/location/countries');

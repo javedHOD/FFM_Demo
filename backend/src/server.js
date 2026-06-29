@@ -10,19 +10,31 @@ const { initDatabase } = require('./db/init');
 // Routes
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
+const usersPageRoutes = require('./routes/usersPage');
 const shopsRoutes = require('./routes/shops');
+const shopsPageRoutes = require('./routes/shopsPage');
 const attendanceRoutes = require('./routes/attendance');
+const attendancePageRoutes = require('./routes/attendancePage');
 const visitsRoutes = require('./routes/visits');
 const salesRoutes = require('./routes/sales');
+const adminSalesPageRoutes = require('./routes/adminSalesPage');
+const salesPageRoutes = require('./routes/salesPage');
 const ordersRoutes = require('./routes/orders');
+const ordersPageRoutes = require('./routes/ordersPage');
 const reportsRoutes = require('./routes/reports');
 const adminDashboardPageRoutes = require('./routes/adminDashboardPage');
+const dashboardPageRoutes = require('./routes/dashboardPage');
+const reportsPageRoutes = require('./routes/reportsPage');
+const regionCityReportPageRoutes = require('./routes/regionCityReportPage');
 const locationRoutes = require('./routes/location');
+const locationManagementPageRoutes = require('./routes/locationManagementPage');
 const hrRoutes = require('./routes/hr');
+const hrManagementPageRoutes = require('./routes/hrManagementPage');
 const categoriesRoutes = require('./routes/categories');
 const productsRoutes   = require('./routes/products');
 const { router: uploadsRouter } = require('./routes/uploads');
 const imeiRoutes = require('./routes/imei');
+const liveTrackingPageRoutes = require('./routes/liveTrackingPage');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -90,20 +102,32 @@ app.get('/api/health', (_req, res) => {
 // API ROUTES
 // ============================================================
 app.use('/api/auth',       authRoutes);
+app.use('/api/users',      usersPageRoutes);
 app.use('/api/users',      usersRoutes);
+app.use('/api/shops',      shopsPageRoutes);
 app.use('/api/shops',      shopsRoutes);
+app.use('/api/attendance', attendancePageRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/visits',     visitsRoutes);
+app.use('/api/sales',      adminSalesPageRoutes);
+app.use('/api/sales',      salesPageRoutes);
 app.use('/api/sales',      salesRoutes);
+app.use('/api/orders',     ordersPageRoutes);
 app.use('/api/orders',     ordersRoutes);
 app.use('/api/reports',    adminDashboardPageRoutes);
+app.use('/api/reports',    dashboardPageRoutes);
+app.use('/api/reports',    reportsPageRoutes);
+app.use('/api/reports',    regionCityReportPageRoutes);
 app.use('/api/reports',    reportsRoutes);
+app.use('/api/location',   locationManagementPageRoutes);
 app.use('/api/location',   locationRoutes);
+app.use('/api/hr',         hrManagementPageRoutes);
 app.use('/api/hr',         hrRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/products',   productsRoutes);
 app.use('/api/uploads',    uploadsRouter);
 app.use('/api/imei',       imeiRoutes);
+app.use('/api/tracking',   liveTrackingPageRoutes);
 
 // 404 handler
 app.use((req, res) => {

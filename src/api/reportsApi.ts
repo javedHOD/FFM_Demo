@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { DashboardStats, Visit, Attendance, SalesEntry, Order } from '../types';
+import type { DashboardStats, Visit, Attendance, SalesEntry, Order, User, Shop, Region, City } from '../types';
 
 export interface AdminDashboardData {
   stats: DashboardStats;
@@ -9,10 +9,59 @@ export interface AdminDashboardData {
   salesData: { month: string; amount: number }[];
 }
 
+export interface DashboardPageData {
+  stats: DashboardStats;
+  recentVisits: Visit[];
+  recentOrders: Order[];
+  weeklyData: { day: string; visits: number; completed: number }[];
+  salesData: { month: string; amount: number }[];
+  todayAttendance: Attendance | null;
+}
+
+export interface ReportsPageData {
+  visits: Visit[];
+  attendance: Attendance[];
+  sales: SalesEntry[];
+  orders: Order[];
+  weeklyData: { day: string; visits: number; completed: number }[];
+  monthlyData: { month: string; amount: number }[];
+}
+
+export interface RegionCityReportPageData {
+  users: User[];
+  shops: Shop[];
+  regions: Region[];
+  cities: City[];
+}
+
 export const reportsApi = {
   getAdminDashboard: async (userId?: number): Promise<AdminDashboardData> => {
     const query = userId ? `?userId=${userId}` : '';
     const { data } = await apiClient.get(`/reports/admin-dashboard${query}`);
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
+  getDashboardPage: async (): Promise<DashboardPageData> => {
+    const { data } = await apiClient.get('/reports/dashboard-page');
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
+  getDashboardPageManager: async (): Promise<DashboardPageData> => {
+    const { data } = await apiClient.get('/reports/dashboard-page-manager');
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
+  getReportsPage: async (): Promise<ReportsPageData> => {
+    const { data } = await apiClient.get('/reports/reports-page');
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
+  getRegionCityReportPage: async (): Promise<RegionCityReportPageData> => {
+    const { data } = await apiClient.get('/reports/region-city-report-page');
     if (!data.success) throw new Error(data.message);
     return data.data;
   },

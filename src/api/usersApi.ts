@@ -1,7 +1,22 @@
 import apiClient from './client';
-import type { User, Region, City } from '../types';
+import type { User, Region, City, Shop } from '../types';
+import type { Employee } from '../types/hr';
+
+export interface UsersPageData {
+  users: User[];
+  regions: Region[];
+  cities: City[];
+  employees: Employee[];
+  shops: Shop[];
+}
 
 export const usersApi = {
+  getUsersPage: async (): Promise<UsersPageData> => {
+    const { data } = await apiClient.get('/users/users-page');
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
   getAll: async (): Promise<User[]> => {
     const { data } = await apiClient.get('/users');
     if (!data.success) throw new Error(data.message);

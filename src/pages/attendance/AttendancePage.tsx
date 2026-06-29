@@ -72,12 +72,9 @@ export const AttendancePage: React.FC = () => {
     if (!user) return;
     (async () => {
       try {
-        const [today, hist] = await Promise.all([
-          attendanceApi.getTodayStatus(user.id),
-          attendanceApi.getMy(user.id),
-        ]);
-        setTodayAttendance(today);
-        setHistory(hist);
+        const data = await attendanceApi.getAttendancePage();
+        setTodayAttendance(data.todayAttendance);
+        setHistory(data.history);
       } catch (e) {
         console.error(e);
         toast.error('Failed to load attendance data');
@@ -85,7 +82,7 @@ export const AttendancePage: React.FC = () => {
         setLoading(false);
       }
     })();
-  }, [user]);
+  }, [user?.id]);
 
   // ─── Camera helpers ───────────────────────────────────────
   const stopStream = useCallback(() => {

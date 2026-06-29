@@ -8,7 +8,6 @@ import { Modal } from '../../components/ui/Modal';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
 import { salesApi } from '../../api/salesApi';
-import { shopsApi } from '../../api/shopsApi';
 import type { SalesEntry, Shop } from '../../types';
 import { products } from '../../api/mockData';
 import { format } from 'date-fns';
@@ -33,19 +32,16 @@ export const SalesPage: React.FC = () => {
     const load = async () => {
       if (!user) return;
       try {
-        const [s, sh] = await Promise.all([
-          salesApi.getMy(user.id),
-          shopsApi.getAll(user.id),
-        ]);
-        setSales(s);
-        setShops(sh);
+        const data = await salesApi.getSalesPage();
+        setSales(data.sales);
+        setShops(data.shops);
       } catch (e) {
         console.error(e);
         toast.error('Failed to load sales data');
       } finally { setLoading(false); }
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const resetForm = () => {
     setForm({ shopId: '', remarks: '' });

@@ -1,7 +1,18 @@
 import apiClient from './client';
-import type { Order, OrderItem } from '../types';
+import type { Order, OrderItem, Shop } from '../types';
+
+export interface OrdersPageData {
+  orders: Order[];
+  shops: Shop[];
+}
 
 export const ordersApi = {
+  getOrdersPage: async (): Promise<OrdersPageData> => {
+    const { data } = await apiClient.get('/orders/orders-page');
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
   getAll: async (): Promise<Order[]> => {
     const { data } = await apiClient.get('/orders');
     if (!data.success) throw new Error(data.message);

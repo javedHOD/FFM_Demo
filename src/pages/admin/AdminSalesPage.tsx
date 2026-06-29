@@ -68,13 +68,10 @@ export const AdminSalesPage: React.FC = () => {
       setRefreshing(true);
       try {
         const params = getApiDateParams(datePreset, appliedFrom, appliedTo);
-        const [s, byUser] = await Promise.all([
-          salesApi.getAll(params),
-          salesApi.getSummaryByUser(params),
-        ]);
+        const data = await salesApi.getAdminSalesPage(params);
         if (!cancelled) {
-          setSales(s);
-          setSalesByUser(byUser);
+          setSales(data.sales);
+          setSalesByUser(data.salesByUser);
         }
       } catch (e) {
         if (!cancelled) {

@@ -10,9 +10,7 @@ import { StatusBadge, Badge } from '../../components/ui/Badge';
 import { Table, Pagination } from '../../components/ui/Table';
 import { Modal } from '../../components/ui/Modal';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { usersApi } from '../../api/usersApi';
-import { attendanceApi } from '../../api/attendanceApi';
-import { visitsApi } from '../../api/visitsApi';
+import { trackingApi } from '../../api/trackingApi';
 import type { User, Attendance, Visit } from '../../types';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -81,28 +79,8 @@ export const LiveTrackingPage: React.FC = () => {
   // Load tracking data
   const loadTrackingData = async () => {
     try {
-      const [users, allAttendance, allVisits] = await Promise.all([
-        usersApi.getAll(),
-        attendanceApi.getAll(),
-        visitsApi.getAll(),
-      ]);
-
-      const fieldStaff = users.filter(u => ['Promoter', 'City Manager'].includes(u.roleName));
-
-      const tracking: FieldStaffTracking[] = fieldStaff.map(user => {
-        const today = new Date().toDateString();
-        const userAttendance = allAttendance.find(a => a.userId === user.id && new Date(a.createdAt).toDateString() === today);
-        const userActiveVisit = allVisits.find(v => v.userId === user.id && v.status === 'InProgress');
-
-        return {
-          user,
-          attendance: userAttendance || null,
-          activeVisit: userActiveVisit || null,
-          lastUpdate: new Date().toISOString(),
-        };
-      });
-
-      setStaffTracking(tracking);
+      const { staffTracking } = await trackingApi.getLiveTrackingPage();
+      setStaffTracking(staffTracking as FieldStaffTracking[]);
     } catch (e) {
       console.error(e);
       toast.error('Failed to load tracking data');
@@ -110,8 +88,12 @@ export const LiveTrackingPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadTrackingData();
-    setLoading(false);
+    const init = async () => {
+      setLoading(true);
+      await loadTrackingData();
+      setLoading(false);
+    };
+    init();
   }, []);
 
   // Auto-refresh every 30 seconds

@@ -1,12 +1,34 @@
 import apiClient from './client';
-import type { SalesEntry } from '../types';
+import type { SalesEntry, Shop } from '../types';
 
 export interface SalesDateFilter {
   from?: string;
   to?: string;
 }
 
+export interface AdminSalesPageData {
+  sales: SalesEntry[];
+  salesByUser: { userId: number; userName: string; totalAmount: number; totalOrders: number }[];
+}
+
+export interface SalesPageData {
+  sales: SalesEntry[];
+  shops: Shop[];
+}
+
 export const salesApi = {
+  getSalesPage: async (): Promise<SalesPageData> => {
+    const { data } = await apiClient.get('/sales/sales-page');
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
+  getAdminSalesPage: async (params?: SalesDateFilter): Promise<AdminSalesPageData> => {
+    const { data } = await apiClient.get('/sales/admin-sales-page', { params });
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
   getAll: async (params?: SalesDateFilter): Promise<SalesEntry[]> => {
     const { data } = await apiClient.get('/sales', { params });
     if (!data.success) throw new Error(data.message);

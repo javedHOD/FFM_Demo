@@ -5,8 +5,7 @@ import { Card, StatCard } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Table } from '../../components/ui/Table';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { usersApi } from '../../api/usersApi';
-import { shopsApi } from '../../api/shopsApi';
+import { reportsApi } from '../../api/reportsApi';
 import type { City, Region, Shop, User } from '../../types';
 
 export const RegionCityReportPage: React.FC = () => {
@@ -22,8 +21,11 @@ export const RegionCityReportPage: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const [u, s, r, c] = await Promise.all([usersApi.getAll(), shopsApi.getAll(), usersApi.getRegions(), usersApi.getCities()]);
-        setUsers(u); setShops(s); setRegions(r); setCities(c);
+        const data = await reportsApi.getRegionCityReportPage();
+        setUsers(data.users);
+        setShops(data.shops);
+        setRegions(data.regions);
+        setCities(data.cities);
       } finally { setLoading(false); }
     };
     load();

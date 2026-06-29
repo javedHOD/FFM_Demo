@@ -1,7 +1,18 @@
 import apiClient from './client';
 import type { Attendance } from '../types';
 
+export interface AttendancePageData {
+  todayAttendance: Attendance | null;
+  history: Attendance[];
+}
+
 export const attendanceApi = {
+  getAttendancePage: async (): Promise<AttendancePageData> => {
+    const { data } = await apiClient.get('/attendance/attendance-page');
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
   getAll: async (): Promise<Attendance[]> => {
     const { data } = await apiClient.get('/attendance');
     if (!data.success) throw new Error(data.message);
