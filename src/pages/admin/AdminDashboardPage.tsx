@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Store, MapPin, Clock, ShoppingCart, DollarSign, TrendingUp, ArrowRight, AlertCircle, Camera } from 'lucide-react';
+import { Users, Store, MapPin, ShoppingCart, DollarSign, TrendingUp, ArrowRight, AlertCircle, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { StatCard, Card, CardHeader } from '../../components/ui/Card';
@@ -7,9 +7,6 @@ import { StatusBadge } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
 import { reportsApi } from '../../api/reportsApi';
-import { visitsApi } from '../../api/visitsApi';
-import { ordersApi } from '../../api/ordersApi';
-import { attendanceApi } from '../../api/attendanceApi';
 import type { DashboardStats, Visit, Order } from '../../types';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
@@ -21,30 +18,19 @@ export const AdminDashboardPage: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
-  const [weeklyData, setWeeklyData] = useState<any[]>([]);
-  const [salesData, setSalesData] = useState<any[]>([]);
-  const [attendanceSummary, setAttendanceSummary] = useState<any[]>([]);
+  const [weeklyData, setWeeklyData] = useState<{ day: string; visits: number; completed: number }[]>([]);
+  const [salesData, setSalesData] = useState<{ month: string; amount: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const uid = user?.id ?? 1;
-        const role = user?.roleName ?? 'Admin';
-        const [s, visits, orders, weekly, sales, attendance] = await Promise.all([
-          reportsApi.getDashboard(uid, role),
-          visitsApi.getAll(),
-          ordersApi.getPending(),
-          reportsApi.getWeeklyVisitData(),
-          reportsApi.getMonthlySalesData(),
-          attendanceApi.getAll(),
-        ]);
-        setStats(s);
-        setRecentVisits(visits.slice(0, 6));
-        setPendingOrders(orders.slice(0, 5));
-        setWeeklyData(weekly);
-        setSalesData(sales.slice(-6));
-        setAttendanceSummary(attendance.slice(0, 5));
+        const data = await reportsApi.getAdminDashboard(user?.id);
+        setStats(data.stats);
+        setRecentVisits(data.recentVisits);
+        setPendingOrders(data.pendingOrders);
+        setWeeklyData(data.weeklyData);
+        setSalesData(data.salesData);
       } catch (e) {
         console.error(e);
         toast.error('Failed to load dashboard data');
