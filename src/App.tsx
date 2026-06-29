@@ -30,6 +30,8 @@ import { LocationManagementPage } from './pages/admin/LocationManagementPage';
 import { HRManagementPage } from './pages/admin/HRManagementPage';
 import { ShiftsPage } from './pages/admin/ShiftsPage';
 import { RegionCityReportPage } from './pages/admin/RegionCityReportPage';
+import { CategoriesPage } from './pages/admin/CategoriesPage';
+import { ProductsPage } from './pages/admin/ProductsPage';
 import { ImeiVerificationLogPage } from './pages/admin/ImeiVerificationLogPage';
 
 // Guest-only route (redirect if already logged in)
@@ -117,6 +119,8 @@ export default function App() {
         <Route path="/admin/hr" element={<AdminRoute><HRManagementPage /></AdminRoute>} />
         <Route path="/admin/shifts" element={<AdminRoute><ShiftsPage /></AdminRoute>} />
         <Route path="/admin/region-city-report" element={<AdminRoute><RegionCityReportPage /></AdminRoute>} />
+        <Route path="/admin/categories" element={<AdminRoute><CategoriesPage /></AdminRoute>} />
+        <Route path="/admin/products" element={<AdminRoute><ProductsPage /></AdminRoute>} />
         <Route path="/admin/imei-logs" element={<AdminRoute><ImeiVerificationLogPage /></AdminRoute>} />
 
         {/* Unauthorized */}

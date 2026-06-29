@@ -460,10 +460,10 @@ export const VisitsPage: React.FC = () => {
               <Button variant="outline" size="sm" leftIcon={<QrCode className="w-3.5 h-3.5" />} onClick={openImeiModal} className="text-white border-white hover:bg-white/10">
                 IMEI Verification
               </Button>
-              <Button variant="secondary" size="sm" onClick={() => { setCapturedPhotos({}); setCompleteModal(true); }}>
-                Complete Visit
-              </Button>
-            </div>
+            <Button variant="secondary" size="sm" onClick={() => { setCapturedPhotos({}); setCompleteModal(true); }}>
+              Complete Visit
+            </Button>
+          </div>
           </div>
         )}
 

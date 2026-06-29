@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Store, MapPin, ShoppingCart, DollarSign, TrendingUp, ArrowRight, AlertCircle, Camera } from 'lucide-react';
+import { Users, Store, MapPin, Clock, ShoppingCart, DollarSign, TrendingUp, ArrowRight, AlertCircle, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { StatCard, Card, CardHeader } from '../../components/ui/Card';
@@ -7,6 +7,9 @@ import { StatusBadge } from '../../components/ui/Badge';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
 import { reportsApi } from '../../api/reportsApi';
+import { visitsApi } from '../../api/visitsApi';
+import { ordersApi } from '../../api/ordersApi';
+import { attendanceApi } from '../../api/attendanceApi';
 import type { DashboardStats, Visit, Order } from '../../types';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';

@@ -170,3 +170,68 @@ export interface ApiResponse<T> {
   message?: string;
   error?: string;
 }
+
+// ────────────────────────────────────────────────────────────
+// Phase 2.4 — Categories + MIS Sync
+// ────────────────────────────────────────────────────────────
+export interface Category {
+  id: number;
+  misId: string | null;            // MIS Sync Primary Key (kept separate)
+  name: string;
+  code?: string | null;
+  description?: string | null;
+  isActive: boolean;
+  isDiscontinued: boolean;
+  discontinuedAt?: string | null;
+  source: 'MANUAL' | 'MIS';
+  syncedAt?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CategorySyncReport {
+  totalReceived: number;
+  saved: number;
+  skipped: number;
+  savedRecords:   Array<{ id?: number; misId: string;        name: string; }>;
+  skippedRecords: Array<{ misId: string | null; name: string; reason: string; }>;
+}
+
+// ────────────────────────────────────────────────────────────
+// Phase 2.5 — Products + MIS Sync
+// ────────────────────────────────────────────────────────────
+export interface Product {
+  id: number;
+  misId: string | null;            // MIS Sync Primary Key (kept separate)
+  name: string;
+  code?: string | null;
+  description?: string | null;
+  unitPrice?: number | null;
+  uom?: string | null;
+  categoryId: number;
+  categoryMisId?: string | null;
+  categoryName?: string | null;
+  isActive: boolean;
+  isDiscontinued: boolean;
+  discontinuedAt?: string | null;
+  source: 'MANUAL' | 'MIS';
+  syncedAt?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ProductSyncReport {
+  totalReceived: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  insertedRecords: Array<{ id?: number; misId: string;        name: string; categoryMisId: string; }>;
+  updatedRecords:  Array<{ id?: number; misId: string;        name: string; categoryMisId: string; }>;
+  skippedRecords:  Array<{ misId: string | null;  name: string; reason: string; }>;
+}
+
+export interface ProductSyncBlockedReport {
+  totalReceived: number;
+  missingCategoryCount: number;
+  missingCategories: Array<{ categoryMisId: string; productCount: number; }>;
+}

@@ -651,6 +651,105 @@ const runMigrations = async () => {
       INSERT INTO admin_settings (duplication_check) VALUES (0);
   `);
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // ──────────────────────────────────────────────────────────
+  // Phase 2.4 — Categories master + MIS sync support
+  // ──────────────────────────────────────────────────────────
+  await pool.request().batch(`
+    IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE type='U' AND name='categories')
+    CREATE TABLE categories (
+      id              INT           PRIMARY KEY IDENTITY(1,1),
+      mis_id          NVARCHAR(100) NULL,                   -- MIS Sync Primary Key (kept separate from local id)
+      name            NVARCHAR(255) NOT NULL,
+      code            NVARCHAR(100) NULL,
+      description     NVARCHAR(1000) NULL,
+      is_active       BIT           DEFAULT 1,
+      is_discontinued BIT           DEFAULT 0,
+      discontinued_at DATETIME      NULL,
+      source          NVARCHAR(20)  DEFAULT 'MANUAL',       -- MANUAL | MIS
+      synced_at       DATETIME      NULL,
+      created_at      DATETIME      DEFAULT GETDATE(),
+      updated_at      DATETIME      DEFAULT GETDATE(),
+      CONSTRAINT uq_categories_name UNIQUE (name)
+    );
+  `);
+  // mis_id: filtered unique index — allows many NULLs (manual rows), enforces uniqueness for MIS sync keys only
+  await pool.request().batch(`
+    IF EXISTS (
+      SELECT 1 FROM sys.key_constraints
+      WHERE name = 'uq_categories_mis_id' AND parent_object_id = OBJECT_ID('categories')
+    )
+      ALTER TABLE categories DROP CONSTRAINT uq_categories_mis_id;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_categories_mis_id' AND object_id = OBJECT_ID('categories'))
+      CREATE UNIQUE INDEX UX_categories_mis_id ON categories(mis_id) WHERE mis_id IS NOT NULL;
+  `);
+  await pool.request().batch(`
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_categories_mis_id' AND object_id=OBJECT_ID('categories'))
+      CREATE INDEX IX_categories_mis_id ON categories(mis_id);
+  `);
+
+  // ──────────────────────────────────────────────────────────
+  // Phase 2.5 — Products master + MIS sync support
+  // ──────────────────────────────────────────────────────────
+  await pool.request().batch(`
+    IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE type='U' AND name='products')
+    CREATE TABLE products (
+      id              INT           PRIMARY KEY IDENTITY(1,1),
+      mis_id          NVARCHAR(100) NULL,                    -- MIS Sync Primary Key (kept separate from local id)
+      name            NVARCHAR(255) NOT NULL,
+      code            NVARCHAR(100) NULL,
+      description     NVARCHAR(1000) NULL,
+      unit_price      DECIMAL(18,2) NULL,
+      uom             NVARCHAR(50)  NULL,
+      category_id     INT           NOT NULL,
+      category_mis_id NVARCHAR(100) NULL,                    -- captured at sync time for traceability
+      is_active       BIT           DEFAULT 1,
+      is_discontinued BIT           DEFAULT 0,
+      discontinued_at DATETIME      NULL,
+      source          NVARCHAR(20)  DEFAULT 'MANUAL',        -- MANUAL | MIS
+      synced_at       DATETIME      NULL,
+      created_at      DATETIME      DEFAULT GETDATE(),
+      updated_at      DATETIME      DEFAULT GETDATE(),
+      CONSTRAINT uq_products_cat_name UNIQUE (category_id, name),
+      CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE NO ACTION
+    );
+  `);
+  await pool.request().batch(`
+    IF EXISTS (
+      SELECT 1 FROM sys.key_constraints
+      WHERE name = 'uq_products_mis_id' AND parent_object_id = OBJECT_ID('products')
+    )
+      ALTER TABLE products DROP CONSTRAINT uq_products_mis_id;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_products_mis_id' AND object_id = OBJECT_ID('products'))
+      CREATE UNIQUE INDEX UX_products_mis_id ON products(mis_id) WHERE mis_id IS NOT NULL;
+  `);
+  await pool.request().batch(`
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_products_mis_id' AND object_id=OBJECT_ID('products'))
+      CREATE INDEX IX_products_mis_id ON products(mis_id);
+  `);
+  await pool.request().batch(`
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_products_category' AND object_id=OBJECT_ID('products'))
+      CREATE INDEX IX_products_category ON products(category_id, is_active, is_discontinued);
+  `);
+
   // Seed countries if table is empty
   const { recordset: [cntRow] } = await pool.request().query('SELECT COUNT(*) as cnt FROM countries');
   if (cntRow.cnt === 0) {

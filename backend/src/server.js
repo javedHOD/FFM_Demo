@@ -19,6 +19,8 @@ const reportsRoutes = require('./routes/reports');
 const adminDashboardPageRoutes = require('./routes/adminDashboardPage');
 const locationRoutes = require('./routes/location');
 const hrRoutes = require('./routes/hr');
+const categoriesRoutes = require('./routes/categories');
+const productsRoutes   = require('./routes/products');
 const { router: uploadsRouter } = require('./routes/uploads');
 const imeiRoutes = require('./routes/imei');
 
@@ -98,6 +100,8 @@ app.use('/api/reports',    adminDashboardPageRoutes);
 app.use('/api/reports',    reportsRoutes);
 app.use('/api/location',   locationRoutes);
 app.use('/api/hr',         hrRoutes);
+app.use('/api/categories', categoriesRoutes);
+app.use('/api/products',   productsRoutes);
 app.use('/api/uploads',    uploadsRouter);
 app.use('/api/imei',       imeiRoutes);
 

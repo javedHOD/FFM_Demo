@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Store, MapPin, Clock, ShoppingCart,
   BarChart3, FileText, Shield, LogOut, ChevronDown, ChevronRight,
   Menu, X, Briefcase, CheckSquare, Camera, Package, Navigation,
-  Globe, Building2, Landmark, AlarmClock, QrCode,
+  Globe, Building2, Landmark, AlarmClock, Tags, QrCode
 } from 'lucide-react';
 
 interface NavItem {
@@ -30,6 +30,8 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard className="w-4.5 h-4.5" />, roles: ['Admin'] },
   { label: 'User Management', path: '/admin/users', icon: <Users className="w-4.5 h-4.5" />, roles: ['Admin'] },
   { label: 'Shop Management', path: '/admin/shops', icon: <Store className="w-4.5 h-4.5" />, roles: ['Admin'] },
+  { label: 'Categories', path: '/admin/categories', icon: <Tags className="w-4.5 h-4.5" />, roles: ['Admin'] },
+  { label: 'Products', path: '/admin/products', icon: <Package className="w-4.5 h-4.5" />, roles: ['Admin'] },
   { label: 'Visit Monitoring', path: '/admin/visits', icon: <MapPin className="w-4.5 h-4.5" />, roles: ['Admin'] },
   { label: 'Attendance', path: '/admin/attendance', icon: <Clock className="w-4.5 h-4.5" />, roles: ['Admin'] },
   { label: 'Orders Management', path: '/admin/orders', icon: <Package className="w-4.5 h-4.5" />, roles: ['Admin'] },
